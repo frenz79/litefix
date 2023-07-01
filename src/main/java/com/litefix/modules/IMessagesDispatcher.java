@@ -5,6 +5,6 @@ import com.litefix.models.FixMessage;
 
 public interface IMessagesDispatcher {
 
-	void onAsyncMessage(FixMessage msg, FixSession fixSession);
+	void dispatch(FixMessage msg, FixSession fixSession);
 
 }

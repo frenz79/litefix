@@ -12,9 +12,9 @@ public class AsyncMessagesDispatcher implements IMessagesDispatcher {
 	private Executor executor = Executors.newSingleThreadExecutor();
 	
 	@Override
-	public void onAsyncMessage(FixMessage msg, FixSession fixSession) {
+	public void dispatch(FixMessage msg, FixSession fixSession) {
 		executor.execute(() -> {
-			fixSession.dispatchMessage(msg);			
+			fixSession.dispatch(msg, fixSession);			
 		});
 	}
 

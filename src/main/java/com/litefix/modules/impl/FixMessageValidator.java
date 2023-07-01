@@ -1,6 +1,5 @@
 package com.litefix.modules.impl;
 
-import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
 

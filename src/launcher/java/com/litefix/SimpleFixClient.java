@@ -7,17 +7,20 @@ import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
 import com.litefix.models.MsgType;
 import com.litefix.modules.impl.AsyncMessagesDispatcher;
-import com.litefix.modules.impl.FixMessagePool;
+import com.litefix.modules.impl.DefaultFixMessagePool;
 import com.litefix.modules.impl.FixMessageValidator;
 import com.litefix.modules.impl.SocketTransport;
 
-public class Main {
+public class SimpleFixClient {
 
-	static ClientFixSession session;
+static ClientFixSession session;
 	
 	public static void main( String[] args ) throws Exception {
-		FixMessagePool msgFactory = new FixMessagePool();
-		
+		String serverHost = "";
+		int serverPort = 0;
+		String senderCompId ="";
+		String targetCompId = "";
+				
 		FixSessionListener listener = new FixSessionListener() {
 
 			@Override
@@ -43,24 +46,16 @@ public class Main {
 		};
 
 		session =(ClientFixSession)new ClientFixSession( listener )
-				.withBeginString("FIX.4.4")
-				.withSenderCompId("UFX2-DEV-A1-FIX")
-				.withTargetCompId("EXCEED-FIX-INFO")
-				.withResetSeqOnLogon( true )
-				.withHbIntervalSec( 1 )
-				.withResetSeqOnLogon( true )
-				.withMessageFactory( msgFactory )
-				.withTransport( new SocketTransport() )
-				.withMessagesDispatcher( new AsyncMessagesDispatcher() )
-				.withMessagesValidator( new FixMessageValidator(FixMessageValidator.CRC) )
+				.withBeginString(FixSession.BEGIN_STRING_FIX44)
+				.withSenderCompId(senderCompId)
+				.withTargetCompId(targetCompId)
+				.validate()
 				.doWarmup(5000);
 		
-		session.doConnect("hivex-fix.uat.svc.exceed-qa.internal.unicreditgroup.eu", 29435)
-			   .doLogon( new FixField( 553, "UFX-UAT" ), new FixField( 554, "uat-test-q8f" ) )
-		;
+		session.doConnect(serverHost, serverPort).doLogon( );
 	}
 	
-	public static void sendNewOrder( FixMessagePool msgFactory ) throws Exception {
+	public static void sendNewOrder( DefaultFixMessagePool msgFactory ) throws Exception {
 		FixMessage msg = null;
 		try {
 			msg = msgFactory.get().setMsgType("D")
@@ -104,5 +99,4 @@ public class Main {
 			System.out.println(LegBidPx + " :  " + XCDLegBidQty + " | "+  XCDLegOfferQty + " : " + LegOfferPx);
 		}
 	}
-	
 }

@@ -6,12 +6,12 @@ import com.litefix.commons.collections.LockFreeStack;
 import com.litefix.models.FixMessage;
 import com.litefix.modules.IFixMessagePool;
 
-public class FixMessagePool implements IFixMessagePool {
+public class DefaultFixMessagePool implements IFixMessagePool {
 	
 	private static final String signatureId = UUID.randomUUID().toString();
 	private final LockFreeStack<FixMessage> objectPool = new LockFreeStack<>();
 		
-	public FixMessagePool() {
+	public DefaultFixMessagePool() {
 		for ( int i=0; i<4; i++ ) {
 			objectPool.push( new FixMessage(signatureId+"@"+i) );
 		}

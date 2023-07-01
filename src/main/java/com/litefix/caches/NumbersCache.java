@@ -32,6 +32,6 @@ public class NumbersCache {
 	
 	public static int fromString( String v ) {
 		Integer r = str2int.get(v);
-		return (r==null)?r:Integer.valueOf( v );
+		return (r!=null)?r:Integer.valueOf( v );
 	}
 }

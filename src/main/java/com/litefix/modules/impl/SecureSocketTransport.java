@@ -90,7 +90,7 @@ public class SecureSocketTransport extends SocketTransport {
 				while (myNetData.hasRemaining()) {
 					socketChannel.write(myNetData);
 				}
-				log.debug("Message sent to the server: " + message);
+				//log.debug("Message sent to the server: " + message);
 				break;
 			case BUFFER_OVERFLOW:
 				myNetData = enlargePacketBuffer(engine, myNetData);
@@ -142,7 +142,7 @@ public class SecureSocketTransport extends SocketTransport {
 	 */
 	@Override
 	public boolean pollMessage(ByteBuffer targetBuff, byte[] beginMessage ) throws IOException {	
-		log.debug("About to read from the server...");
+		//log.debug("About to read from the server...");
 
         peerNetData.clear();
 
@@ -154,7 +154,7 @@ public class SecureSocketTransport extends SocketTransport {
                     switch (result.getStatus()) {
                     case OK:
                         peerAppData.flip();
-                        log.debug("Server response: " + new String(peerAppData.array()));
+                        //log.debug("Server response: " + new String(peerAppData.array()));
                         break;
                     case BUFFER_OVERFLOW:
                         peerAppData = enlargeApplicationBuffer(engine, peerAppData);
@@ -164,7 +164,7 @@ public class SecureSocketTransport extends SocketTransport {
                         break;
                     case CLOSED:
                         closeConnection(socketChannel, engine);
-                        return;
+                        return true;
                     default:
                         throw new IllegalStateException("Invalid SSL status: " + result.getStatus());
                     }
@@ -175,6 +175,8 @@ public class SecureSocketTransport extends SocketTransport {
           //  }
           //  Thread.sleep(waitToReadMillis);
         }
+        
+        return false;
 	}
 
 
@@ -234,7 +236,7 @@ public class SecureSocketTransport extends SocketTransport {
 					try {
 						engine.closeInbound();
 					} catch (SSLException e) {
-						log.error("This engine was forced to close inbound, without having received the proper SSL/TLS close notification message from the peer, due to end of stream.");
+					//	log.error("This engine was forced to close inbound, without having received the proper SSL/TLS close notification message from the peer, due to end of stream.");
 					}
 					engine.closeOutbound();
 					// After closeOutbound the engine will be set to WRAP state, in order to try to send a close message to the client.
@@ -247,7 +249,7 @@ public class SecureSocketTransport extends SocketTransport {
 					peerNetData.compact();
 					handshakeStatus = result.getHandshakeStatus();
 				} catch (SSLException sslException) {
-					log.error("A problem was encountered while processing the data that caused the SSLEngine to abort. Will try to properly close connection...");
+				//	log.error("A problem was encountered while processing the data that caused the SSLEngine to abort. Will try to properly close connection...");
 					engine.closeOutbound();
 					handshakeStatus = engine.getHandshakeStatus();
 					break;
@@ -281,7 +283,7 @@ public class SecureSocketTransport extends SocketTransport {
 					result = engine.wrap(myAppData, myNetData);
 					handshakeStatus = result.getHandshakeStatus();
 				} catch (SSLException sslException) {
-					log.error("A problem was encountered while processing the data that caused the SSLEngine to abort. Will try to properly close connection...");
+				//	log.error("A problem was encountered while processing the data that caused the SSLEngine to abort. Will try to properly close connection...");
 					engine.closeOutbound();
 					handshakeStatus = engine.getHandshakeStatus();
 					break;
@@ -310,7 +312,7 @@ public class SecureSocketTransport extends SocketTransport {
 						// At this point the handshake status will probably be NEED_UNWRAP so we make sure that peerNetData is clear to read.
 						peerNetData.clear();
 					} catch (Exception e) {
-						log.error("Failed to send server's CLOSE message due to socket channel's failure.");
+					//	log.error("Failed to send server's CLOSE message due to socket channel's failure.");
 						handshakeStatus = engine.getHandshakeStatus();
 					}
 					break;
@@ -417,7 +419,7 @@ public class SecureSocketTransport extends SocketTransport {
 		try {
 			engine.closeInbound();
 		} catch (Exception e) {
-			log.error("This engine was forced to close inbound, without having received the proper SSL/TLS close notification message from the peer, due to end of stream.");
+		//	log.error("This engine was forced to close inbound, without having received the proper SSL/TLS close notification message from the peer, due to end of stream.");
 		}
 		closeConnection(socketChannel, engine);
 	}

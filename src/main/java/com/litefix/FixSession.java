@@ -6,6 +6,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import com.litefix.commons.exceptions.InvalidSessionException;
+import com.litefix.commons.exceptions.InvalidSessionException.CAUSE;
+import com.litefix.commons.utils.StringUtils;
 import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
@@ -14,15 +17,22 @@ import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IMessagesDispatcher;
 import com.litefix.modules.ITransport;
 import com.litefix.modules.impl.AsyncMessagesDispatcher;
-import com.litefix.modules.impl.FixMessagePool;
+import com.litefix.modules.impl.DefaultFixMessagePool;
 import com.litefix.modules.impl.FixMessageValidator;
+import com.litefix.modules.impl.SocketTransport;
 import com.litefix.warmup.ArrayUtilsWarmup;
 import com.litefix.warmup.FixMessageWarmup;
 import com.litefix.warmup.MathUtilsWarmup;
 import com.litefix.warmup.NumbersCacheWarmup;
 
-public abstract class FixSession {
+public abstract class FixSession implements IMessagesDispatcher {
 
+	public static String BEGIN_STRING_FIX44 = "FIX.4.4";
+	
+	public static int DEFAULT_HB_INTERVAL_SEC = 5;
+	public static boolean DEFAULT_RESET_ON_LOGON = true;
+	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
+	
 	public static interface FixSessionListener {
 		
 		public void onLogin();
@@ -41,25 +51,27 @@ public abstract class FixSession {
 	// 20221216-12:21:31.683
 	private static final DateTimeFormatter SENDING_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
 	
+	// Mandatory fields to be set
 	private String beginString;
 	protected String senderCompId;
 	protected String targetCompId;
 	
-	protected int hbIntervalSec;
-	protected boolean resetSeqOnLogon;
+	// Optional fields with default values
+	protected int hbIntervalSec = DEFAULT_HB_INTERVAL_SEC;
+	protected boolean resetSeqOnLogon = DEFAULT_RESET_ON_LOGON;
 	private long testRequestTolerance = 1000L;
-			
+	
+	protected IFixMessagePool messagePool;
+	protected ITransport transport;
+	protected IMessagesDispatcher messagesDispatcher;
+	protected FixMessageValidator messageValidator;
+	
 	protected Status sessionStatus = Status.KO;
 	private Status testRequestStatus = Status.KO;
 	
 	private long lastRcvTime = 0l;
 	private long lastSndTime = 0l;
 	private int outgoingSeq = 0;
-	
-	protected IFixMessagePool messageFactory;
-	protected ITransport transport;
-	protected IMessagesDispatcher messagesDispatcher;
-	protected FixMessageValidator messageValidator;
 	
 	protected final FixSessionListener fixSessionListener;
 	
@@ -103,8 +115,8 @@ public abstract class FixSession {
 		return this;
 	}
 	
-	public FixSession withMessageFactory( FixMessagePool fixMessageFactory ) {
-		this.messageFactory = fixMessageFactory;
+	public FixSession withMessagePool( IFixMessagePool fixMessageFactory ) {
+		this.messagePool = fixMessageFactory;
 		return this;
 	}
 	
@@ -147,7 +159,7 @@ public abstract class FixSession {
 	public FixSession sendReject(FixField refSeqNum, String text, MsgType refMsgType ) throws Exception {
 		FixMessage msg = null;
 		try {
-			msg = messageFactory.get().setMsgType("3")
+			msg = messagePool.get().setMsgType("3")
 				.addField( refSeqNum ) // TODO: change me
 				.addField( new FixTag(372), refMsgType.getBytes() )
 			;
@@ -159,14 +171,14 @@ public abstract class FixSession {
 			send( msg ); 
 			return this;
 		} finally {
-			messageFactory.release(msg);
+			messagePool.release(msg);
 		}
 	}
 	
 	public FixSession doLogout( String reason ) throws Exception {
 		FixMessage msg = null;
 		try {
-			msg = messageFactory.get().setMsgType("5");
+			msg = messagePool.get().setMsgType("5");
 			if ( reason!=null && !reason.isEmpty() ) {
 				msg.addField(new FixTag(58), reason);
 			}
@@ -174,38 +186,38 @@ public abstract class FixSession {
 			this.sessionStatus = Status.KO;
 			return this;
 		} finally {
-			messageFactory.release(msg);
+			messagePool.release(msg);
 		}
 	}	
 	
 	private FixSession sendHeartbeat( FixField testReqId ) throws Exception {
 		FixMessage msg = null;
 		try {
-			msg = messageFactory.get().setMsgType("0");
+			msg = messagePool.get().setMsgType("0");
 			if ( testReqId!=null ) {
 				msg.addField( testReqId );
 			}
 			send( msg );
 			return this;
 		} finally {
-			messageFactory.release(msg);
+			messagePool.release(msg);
 		}
 	}
 	
 	private FixSession sendTestRequest() throws Exception {
 		FixMessage msg = null;
 		try {
-			msg = messageFactory.get().setMsgType("1")
+			msg = messagePool.get().setMsgType("1")
 				.addField( new FixTag(112), UUID.randomUUID().toString() );
 			send( msg );
 			return this;
 		} finally {
-			messageFactory.release(msg);
+			messagePool.release(msg);
 		}
 	}
 	
 	protected void runLoop() throws Exception {
-		FixMessage msg = this.messageFactory.get();
+		FixMessage msg = this.messagePool.get();
 		byte[] beginMessageDelimiter = ("8="+beginString+"9=").getBytes();
 		
 		messageValidator.setSenderCompId(senderCompId);
@@ -219,7 +231,7 @@ public abstract class FixSession {
 				this.lastRcvTime = now;
 				
 				if (!handleFixMessage( msg, now ) ) {
-					msg = this.messageFactory.get();
+					msg = this.messagePool.get();
 					msg.reset();
 				}
 			}
@@ -269,18 +281,18 @@ public abstract class FixSession {
 					fixSessionListener.onLogout();
 					break;
 				default:
-					if ( messagesDispatcher==null ) {
-						dispatchMessage( msg );
-					} else {
-						messagesDispatcher.onAsyncMessage( msg, this );						
-					}
+					messagesDispatcher.dispatch( msg, this );						
 					return false;			
 			}
 		}
 		return true;
 	}
 	
-	public void dispatchMessage( FixMessage msg ) {
+	/* IMEssageDispatcher
+	 * 
+	 * */
+	@Override
+	public void dispatch( FixMessage msg, FixSession s ) {
 		try {
 			fixSessionListener.onMessage( msg.getMsgType(), msg );
 		} catch ( Exception ex ) {
@@ -290,12 +302,12 @@ public abstract class FixSession {
 				e.printStackTrace();
 			}
 		} finally {
-			messageFactory.release(msg);
+			messagePool.release(msg);
 		}
 	}
 
 	public IFixMessagePool getMessageFactory() {
-		return messageFactory;
+		return messagePool;
 	}
 
 	public FixSession doWarmup(int iterations) {
@@ -304,6 +316,36 @@ public abstract class FixSession {
 		MathUtilsWarmup.warmup(iterations);
 		FixMessageWarmup.warmup(iterations);
 		return this;
+	}
+
+	public FixSession validate() throws InvalidSessionException {
+		if ( StringUtils.isEmpty(senderCompId) ) {
+			throw new InvalidSessionException(CAUSE.FIELD_NOT_SET,"senderCompId");
+		}
+		if ( StringUtils.isEmpty(targetCompId) ) {
+			throw new InvalidSessionException(CAUSE.FIELD_NOT_SET,"targetCompId");
+		}
+		if ( StringUtils.isEmpty(beginString) ) {
+			throw new InvalidSessionException(CAUSE.FIELD_NOT_SET,"beginString");
+		}
+		
+		if ( this.messagePool==null ) {
+			this.messagePool = new DefaultFixMessagePool();
+		}
+		if ( this.transport==null ) {
+			this.transport = new SocketTransport();
+		}
+		if ( this.messagesDispatcher==null ) {
+			this.messagesDispatcher = this;
+		}
+		if ( this.messageValidator==null ) {
+			this.messageValidator = new FixMessageValidator(DEFAULT_MSG_VALIDATOR_FLAGS);
+		}		
+		return this;
+	}
+	
+	public IFixMessagePool getMessagePool() {
+		return messagePool;
 	}
 	
 }

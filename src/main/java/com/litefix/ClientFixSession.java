@@ -32,7 +32,7 @@ public class ClientFixSession extends FixSession {
 	public ClientFixSession doLogon( FixField ... additionalFields ) throws Exception {
 		FixMessage msg = null;
 		try {
-			msg = messageFactory.get().setMsgType("A")
+			msg = messagePool.get().setMsgType("A")
 				.addField( new FixTag(98), "0" ) // EncryptMethod
 				.addField( new FixTag(108), hbIntervalSec )
 				.addField( new FixTag(141), (resetSeqOnLogon)?'Y':'N' )		
@@ -44,7 +44,7 @@ public class ClientFixSession extends FixSession {
 			this.sessionStatus = Status.PENDING;
 			return this;
 		} finally {
-			messageFactory.release(msg);
+			messagePool.release(msg);
 		}
 	}	
 }
