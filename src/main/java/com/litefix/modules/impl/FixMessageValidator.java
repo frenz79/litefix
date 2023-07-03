@@ -29,9 +29,11 @@ public class FixMessageValidator {
 	    }
 	    
 	    if ( !msg.is( FixTag.HEADER_TAG_SENDER_COMP_ID, targetCompIdBytes )){
+	    	System.out.println("Invalid TargetCompID");
 	    	return false;
 	    }
 	    if ( !msg.is( FixTag.HEADER_TAG_TARGET_COMP_ID, senderCompIdBytes )){
+	    	System.out.println("Invalid SenderCompID");
 	    	return false;
 	    }
 	    

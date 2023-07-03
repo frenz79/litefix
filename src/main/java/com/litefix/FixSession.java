@@ -6,19 +6,24 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import com.litefix.commons.IFixConst;
 import com.litefix.commons.exceptions.InvalidSessionException;
 import com.litefix.commons.exceptions.InvalidSessionException.CAUSE;
+import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.StringUtils;
 import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
 import com.litefix.models.MsgType;
+import com.litefix.models.SessionStatus;
 import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IMessagesDispatcher;
+import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
 import com.litefix.modules.impl.AsyncMessagesDispatcher;
 import com.litefix.modules.impl.DefaultFixMessagePool;
 import com.litefix.modules.impl.FixMessageValidator;
+import com.litefix.modules.impl.InMemoryPersistence;
 import com.litefix.modules.impl.SocketTransport;
 import com.litefix.warmup.ArrayUtilsWarmup;
 import com.litefix.warmup.FixMessageWarmup;
@@ -26,28 +31,11 @@ import com.litefix.warmup.MathUtilsWarmup;
 import com.litefix.warmup.NumbersCacheWarmup;
 
 public abstract class FixSession implements IMessagesDispatcher {
-
-	public static String BEGIN_STRING_FIX44 = "FIX.4.4";
 	
 	public static int DEFAULT_HB_INTERVAL_SEC = 5;
 	public static boolean DEFAULT_RESET_ON_LOGON = true;
 	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
 	
-	public static interface FixSessionListener {
-		
-		public void onLogin();
-		public void onLogout();
-		public void onMessage(MsgType sgType, FixMessage msg) throws Exception;
-		public void onConnection(boolean b);
-		
-	}
-	
-	static enum Status {
-		KO,
-		PENDING,
-		OK		
-	};
-
 	// 20221216-12:21:31.683
 	private static final DateTimeFormatter SENDING_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
 	
@@ -61,21 +49,20 @@ public abstract class FixSession implements IMessagesDispatcher {
 	protected boolean resetSeqOnLogon = DEFAULT_RESET_ON_LOGON;
 	private long testRequestTolerance = 1000L;
 	
+	protected IPersistence persistence;
 	protected IFixMessagePool messagePool;
 	protected ITransport transport;
 	protected IMessagesDispatcher messagesDispatcher;
 	protected FixMessageValidator messageValidator;
 	
-	protected Status sessionStatus = Status.KO;
-	private Status testRequestStatus = Status.KO;
+	protected SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
 	
 	private long lastRcvTime = 0l;
 	private long lastSndTime = 0l;
-	private int outgoingSeq = 0;
 	
-	protected final FixSessionListener fixSessionListener;
+	protected final IFixSessionListener fixSessionListener;
 	
-	public FixSession( FixSessionListener fixSessionListener ) {
+	public FixSession( IFixSessionListener fixSessionListener ) {
 		super();
 		this.fixSessionListener = fixSessionListener;
 	}
@@ -125,6 +112,11 @@ public abstract class FixSession implements IMessagesDispatcher {
 		return this;
 	}
 	
+	public FixSession withPersistence( IPersistence persistence ) {
+		this.persistence = persistence;
+		return this;
+	}
+	
 	public String getBeginString() {
 		return beginString;
 	}
@@ -138,21 +130,22 @@ public abstract class FixSession implements IMessagesDispatcher {
 	}
 	
 	public FixSession send( FixMessage message ) throws Exception {
-		if ( !sessionStatus.equals(Status.OK) && !message.getMsgType().is("A")) {
+		if ( !sessionStatus.equals(SessionStatus.ACTIVE) && !message.getMsgType().is("A")) {
 			throw new Exception("Not logged in");
 		}
-
+		int sequence = persistence.getAndIncrementSeq();
 		message.build(
 			beginString,
 			senderCompId,
 			targetCompId,				
 			LocalDateTime.now(ZoneOffset.UTC).format( SENDING_TIME_FORMATTER ),
-			++outgoingSeq
+			sequence
 		);
 		
 		transport.send( message );
+		persistence.store( sequence, message );
 		this.lastSndTime = System.nanoTime();
-		//System.out.println(">> outgoing: "+message);
+		System.out.println(">> outgoing: "+message);
 		return this;
 	}
 	
@@ -161,11 +154,11 @@ public abstract class FixSession implements IMessagesDispatcher {
 		try {
 			msg = messagePool.get().setMsgType("3")
 				.addField( refSeqNum ) // TODO: change me
-				.addField( new FixTag(372), refMsgType.getBytes() )
+				.addField( IFixConst.TAG_372, refMsgType.getBytes() )
 			;
 			
 			if ( text!=null && text.length()>0 ) {
-				msg.addField( new FixTag(58), text );
+				msg.addField( IFixConst.TAG_58, text );
 			}
 			
 			send( msg ); 
@@ -180,10 +173,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 		try {
 			msg = messagePool.get().setMsgType("5");
 			if ( reason!=null && !reason.isEmpty() ) {
-				msg.addField(new FixTag(58), reason);
+				msg.addField(IFixConst.TAG_58, reason);
 			}
 			send( msg );
-			this.sessionStatus = Status.KO;
+			this.sessionStatus = SessionStatus.LOGGED_OUT;
 			return this;
 		} finally {
 			messagePool.release(msg);
@@ -208,7 +201,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("1")
-				.addField( new FixTag(112), UUID.randomUUID().toString() );
+				.addField(IFixConst.TAG_112, FixUUID.random() );
 			send( msg );
 			return this;
 		} finally {
@@ -236,10 +229,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 				}
 			}
 			
-			if ( Status.OK.equals( this.sessionStatus ) ) {
-				if (!Status.PENDING.equals( this.testRequestStatus ) && now - this.lastRcvTime > (this.hbIntervalSec*1_000_000_000L+testRequestTolerance) ) {
+			if ( SessionStatus.ACTIVE.equals( this.sessionStatus ) ) {
+				if (!SessionStatus.ACTIVE_WAIT.equals( this.sessionStatus ) && now - this.lastRcvTime > (this.hbIntervalSec*1_000_000_000L+testRequestTolerance) ) {
 					sendTestRequest();
-					this.testRequestStatus = Status.PENDING;
+					this.sessionStatus = SessionStatus.ACTIVE_WAIT;
 				}
 				if (now - this.lastSndTime > this.hbIntervalSec*1_000_000_000L ) {
 					sendHeartbeat( null );
@@ -255,14 +248,18 @@ public abstract class FixSession implements IMessagesDispatcher {
 		} else {
 			long delta = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-now);
 			System.out.println("<< incoming processed in ["+delta+"]micros : "+msg); 
-			
-			switch(msg.getMsgType().toString()) {
-				case "A": // Logon
-					this.sessionStatus = Status.OK;
+			String msgType = msg.getMsgType().toString();
+						
+			if (SessionStatus.LOGON_SENT.equals(sessionStatus)) {
+				if ( "A".equals(msgType) ) {
+					this.sessionStatus = SessionStatus.ACTIVE;
 					fixSessionListener.onLogin();
-					break;
+				}
+				// No other message types are expected here
+			} else if (SessionStatus.ACTIVE.equals(sessionStatus) || SessionStatus.ACTIVE_WAIT.equals(sessionStatus)) {
+				switch(msgType) {
 				case "0": // heartbeat					
-					this.testRequestStatus = Status.OK; // TODO: check field 112
+					this.sessionStatus = SessionStatus.ACTIVE; // TODO: check field 112
 					break;
 				case "1": // test request					
 					sendHeartbeat( msg.getField( new FixTag(112), new FixField() ) );
@@ -277,12 +274,13 @@ public abstract class FixSession implements IMessagesDispatcher {
 					// Sequence Reset
 					break;					
 				case "5": // logout
-					this.sessionStatus = Status.KO;
+					this.sessionStatus = SessionStatus.LOGGED_OUT;
 					fixSessionListener.onLogout();
 					break;
 				default:
 					messagesDispatcher.dispatch( msg, this );						
 					return false;			
+				}
 			}
 		}
 		return true;
@@ -340,7 +338,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 		}
 		if ( this.messageValidator==null ) {
 			this.messageValidator = new FixMessageValidator(DEFAULT_MSG_VALIDATOR_FLAGS);
-		}		
+		}
+		if ( this.persistence==null ) {
+			this.persistence = new InMemoryPersistence(beginString,senderCompId,beginString);
+		}
 		return this;
 	}
 	

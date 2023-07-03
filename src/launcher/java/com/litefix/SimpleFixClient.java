@@ -1,15 +1,11 @@
 package com.litefix;
 
-import com.litefix.FixSession.FixSessionListener;
-import com.litefix.models.FixField;
+import com.litefix.commons.IFixConst;
 import com.litefix.models.FixGroup;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
 import com.litefix.models.MsgType;
-import com.litefix.modules.impl.AsyncMessagesDispatcher;
 import com.litefix.modules.impl.DefaultFixMessagePool;
-import com.litefix.modules.impl.FixMessageValidator;
-import com.litefix.modules.impl.SocketTransport;
 
 public class SimpleFixClient {
 
@@ -21,7 +17,7 @@ static ClientFixSession session;
 		String senderCompId ="";
 		String targetCompId = "";
 				
-		FixSessionListener listener = new FixSessionListener() {
+		IFixSessionListener listener = new IFixSessionListener() {
 
 			@Override
 			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
@@ -46,7 +42,7 @@ static ClientFixSession session;
 		};
 
 		session =(ClientFixSession)new ClientFixSession( listener )
-				.withBeginString(FixSession.BEGIN_STRING_FIX44)
+				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
 				.withSenderCompId(senderCompId)
 				.withTargetCompId(targetCompId)
 				.validate()
@@ -59,8 +55,8 @@ static ClientFixSession session;
 		FixMessage msg = null;
 		try {
 			msg = msgFactory.get().setMsgType("D")
-				.addField( new FixTag(98), "0" )
-				.addField( new FixTag(108), "");
+				.addField( IFixConst.TAG_98, "0" )
+				.addField( IFixConst.TAG_108, "");
 			session.send(msg);
 		} finally {
 			msgFactory.release(msg);

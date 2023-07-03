@@ -3,10 +3,11 @@ package com.litefix;
 import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
+import com.litefix.models.SessionStatus;
 
 public class ClientFixSession extends FixSession {
 
-	public ClientFixSession(FixSessionListener fixSessionListener) {
+	public ClientFixSession(IFixSessionListener fixSessionListener) {
 		super(fixSessionListener);
 	}
 
@@ -41,7 +42,7 @@ public class ClientFixSession extends FixSession {
 				msg.addField(add);
 			}
 			send( msg );
-			this.sessionStatus = Status.PENDING;
+			this.sessionStatus = SessionStatus.LOGON_SENT;
 			return this;
 		} finally {
 			messagePool.release(msg);
