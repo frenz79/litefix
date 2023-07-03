@@ -207,6 +207,10 @@ public class FixMessage implements IPoolable {
 		return new String( bufferArray, startPos, endPos-startPos );
 	}
 	
+	public FixField getField( FixTag tag ) {
+		return getField( tag, new FixField() );	
+	}
+	
 	public FixField getField( FixTag tag, FixField field ) {
 		byte[] tagBytes = tag.getTagBytes();
 		int startTag = ArrayUtils.findArray( bufferArray, tagBytes );

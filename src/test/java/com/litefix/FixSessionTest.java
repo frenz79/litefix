@@ -8,8 +8,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
 import com.litefix.commons.IFixConst;
+import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
+import com.litefix.models.SessionStatus;
 import com.litefix.modules.ITransport;
 import com.litefix.modules.impl.AsyncMessagesDispatcher;
 
@@ -26,8 +28,8 @@ public class FixSessionTest {
 
 		@Override
 		public ITransport send(FixMessage msg) throws IOException {
-			// TODO Auto-generated method stub
-			return null;
+			System.out.println("-->"+msg);
+			return this;
 		}
 
 		boolean connectRcv = false;
@@ -63,10 +65,33 @@ public class FixSessionTest {
 			
 			return msgResp!=null;
 		}
-		
 	}
 	
-	@Test
+	public static class DummyFixSessionListener implements IFixSessionListener {
+		@Override
+		public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
+		
+		@Override
+		public void onLogin() {	System.out.println("Logged IN"); }
+
+		@Override
+		public void onLogout() { System.out.println("Logged OUT"); }
+
+		@Override
+		public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
+			switch( msgType.toString() ) {
+			case "S":
+			//	handleQuote( msg );
+			//	sendNewOrder( msgFactory );
+				break;
+			default:
+				throw new Exception("Unsupported message");
+			}				
+		}	
+	}
+	
+	
+	// @Test
 	public void sendHeartbeatTest() throws Exception {
 		String serverHost = "mock_server";
 		int serverPort = 1234;
@@ -97,18 +122,54 @@ public class FixSessionTest {
 			}			
 		};
 
-		ClientFixSession session =(ClientFixSession)new ClientFixSession( listener )
+		ClientFixSession session =(ClientFixSession)new FixSessionBuilder( listener )
 				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
 				.withSenderCompId(senderCompId)
 				.withTargetCompId(targetCompId)
 				.withTransport(new DummyTransport())
 				.withMessagesDispatcher(new AsyncMessagesDispatcher())
 				.withHbIntervalSec(5)
-				.validate()
-				.doWarmup(5000);
+				.build();
 		
 		session.doConnect(serverHost, serverPort).doLogon( );
 		
 		while(true) {}
 	}
+	
+	@Test
+	public void testPersistence() throws Exception {
+		ClientFixSession session =(ClientFixSession)new FixSessionBuilder( new DummyFixSessionListener() )
+				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
+				.withSenderCompId("senderCompId")
+				.withTargetCompId("targetCompId")
+				.withTransport(new DummyTransport())
+				.withMessagesDispatcher(new AsyncMessagesDispatcher())
+				.withHbIntervalSec(5)
+				.build();
+		// Force active status
+		session.setSessionStatus(SessionStatus.ACTIVE);
+		
+		sendNewOrder( session );
+		sendNewOrder( session );
+		sendNewOrder( session );
+		sendNewOrder( session );
+		sendNewOrder( session );
+		sendNewOrder( session );
+		
+		System.out.println("------> processResendRequest()");
+		
+		((FixSession)session).processResendRequest( new FixField(IFixConst.BeginSeqNo,"0"), new FixField(IFixConst.EndSeqNo,"2") );
+	}
+	
+	public static void sendNewOrder( FixSession session ) throws Exception {
+		FixMessage msg = null;
+		try {
+			msg = session.getMessageFactory().get().setMsgType("D")
+				.addField( IFixConst.TAG_98, "0" )
+				.addField( IFixConst.TAG_108, "");
+			session.send(msg);
+		} finally {
+			session.getMessageFactory().release(msg);
+		}		
+	}	
 }

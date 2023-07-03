@@ -40,17 +40,17 @@ public class FixMessageTest {
 		assertTrue( msg.getMsgType().is("A") );
 		assertFalse( msg.getMsgType().is("B") );
 		assertFalse( msg.getMsgType().is("a") );
-		assertEquals(msg.getField(new FixTag(98), holder).valueString(), "0" );
-		assertEquals(msg.getField(new FixTag(108), holder).valueString(), "10" );
-		assertEquals(msg.getField(new FixTag(141), holder).valueString(), "Y" );
+		assertEquals(msg.getField(new FixTag(98), holder).valueAsString(), "0" );
+		assertEquals(msg.getField(new FixTag(108), holder).valueAsString(), "10" );
+		assertEquals(msg.getField(new FixTag(141), holder).valueAsString(), "Y" );
 		
 		assertEquals(msg.toString(), "8=beginString9=7435=A49=senderCompId56=targetCompId52=2023010134=12398=0108=10141=Y10=060");		
 		
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).valueString(), "senderCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).valueString(), "targetCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).valueString(), "beginString" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).valueString(), "20230101" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).valueString(), "123" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).valueAsString(), "senderCompId" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).valueAsString(), "targetCompId" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).valueAsString(), "beginString" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).valueAsString(), "20230101" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).valueAsString(), "123" );
 				
 		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).is("senderCompId") );
 		assertTrue( msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).is("targetCompId") );
@@ -71,17 +71,17 @@ public class FixMessageTest {
 		assertTrue( msg.getMsgType().is("A") );
 		assertFalse( msg.getMsgType().is("B") );
 		assertFalse( msg.getMsgType().is("a") );
-		assertEquals(msg.getField(new FixTag(98), holder).valueString(), "0" );
-		assertEquals(msg.getField(new FixTag(108), holder).valueString(), "10" );
-		assertEquals(msg.getField(new FixTag(141), holder).valueString(), "Y" );
+		assertEquals(msg.getField(new FixTag(98), holder).valueAsString(), "0" );
+		assertEquals(msg.getField(new FixTag(108), holder).valueAsString(), "10" );
+		assertEquals(msg.getField(new FixTag(141), holder).valueAsString(), "Y" );
 		
 		assertEquals(msg.toString(), "8=beginString9=7435=A49=senderCompId56=targetCompId52=2023010134=12398=0108=10141=Y10=060");		
 		
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).valueString(), "senderCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).valueString(), "targetCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).valueString(), "beginString" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).valueString(), "20230101" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).valueString(), "123" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).valueAsString(), "senderCompId" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).valueAsString(), "targetCompId" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).valueAsString(), "beginString" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).valueAsString(), "20230101" );
+		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).valueAsString(), "123" );
 				
 		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).is("senderCompId") );
 		assertTrue( msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).is("targetCompId") );

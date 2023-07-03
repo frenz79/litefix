@@ -39,4 +39,13 @@ public class MsgType {
 		return true;
 	}
 
+	public boolean in(String ... vals) {
+		for ( String val : vals ) {
+			if ( is(val) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 }

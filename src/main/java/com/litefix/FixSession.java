@@ -3,7 +3,6 @@ package com.litefix;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.litefix.commons.IFixConst;
@@ -20,7 +19,6 @@ import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IMessagesDispatcher;
 import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
-import com.litefix.modules.impl.AsyncMessagesDispatcher;
 import com.litefix.modules.impl.DefaultFixMessagePool;
 import com.litefix.modules.impl.FixMessageValidator;
 import com.litefix.modules.impl.InMemoryPersistence;
@@ -40,9 +38,9 @@ public abstract class FixSession implements IMessagesDispatcher {
 	private static final DateTimeFormatter SENDING_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
 	
 	// Mandatory fields to be set
-	private String beginString;
-	protected String senderCompId;
-	protected String targetCompId;
+	String beginString;
+	String senderCompId;
+	String targetCompId;
 	
 	// Optional fields with default values
 	protected int hbIntervalSec = DEFAULT_HB_INTERVAL_SEC;
@@ -57,6 +55,14 @@ public abstract class FixSession implements IMessagesDispatcher {
 	
 	protected SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
 	
+	public SessionStatus getSessionStatus() {
+		return sessionStatus;
+	}
+
+	void setSessionStatus(SessionStatus sessionStatus) {
+		this.sessionStatus = sessionStatus;
+	}
+
 	private long lastRcvTime = 0l;
 	private long lastSndTime = 0l;
 	
@@ -66,57 +72,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 		super();
 		this.fixSessionListener = fixSessionListener;
 	}
-	
-	public FixSession withMessagesDispatcher(AsyncMessagesDispatcher messagesDispatcher) {
-		this.messagesDispatcher = messagesDispatcher;
-		return this;
-	}
-	
-	public FixSession withMessagesValidator(FixMessageValidator messageValidator) {
-		this.messageValidator = messageValidator;
-		return this;
-	}
-	
-	public FixSession withBeginString( String beginString ) {
-		this.beginString = beginString;
-		return this;
-	}
-
-	public FixSession withSenderCompId( String senderCompId ) {
-		this.senderCompId = senderCompId;
-		return this;
-	}
-	
-	public FixSession withResetSeqOnLogon( boolean resetSeqOnLogon ) {
-		this.resetSeqOnLogon = resetSeqOnLogon;
-		return this;
-	}
-	
-	public FixSession withHbIntervalSec( int hbIntervalSec ) {
-		this.hbIntervalSec = hbIntervalSec;
-		return this;
-	}
-	
-	public FixSession withTargetCompId( String targetCompId ) {
-		this.targetCompId = targetCompId;
-		return this;
-	}
-	
-	public FixSession withMessagePool( IFixMessagePool fixMessageFactory ) {
-		this.messagePool = fixMessageFactory;
-		return this;
-	}
-	
-	public FixSession withTransport( ITransport transport ) {
-		this.transport = transport;
-		return this;
-	}
-	
-	public FixSession withPersistence( IPersistence persistence ) {
-		this.persistence = persistence;
-		return this;
-	}
-	
+		
 	public String getBeginString() {
 		return beginString;
 	}
@@ -130,20 +86,28 @@ public abstract class FixSession implements IMessagesDispatcher {
 	}
 	
 	public FixSession send( FixMessage message ) throws Exception {
+		return send( message, false );
+	}
+	
+	public FixSession send( FixMessage message, boolean isDup ) throws Exception {
 		if ( !sessionStatus.equals(SessionStatus.ACTIVE) && !message.getMsgType().is("A")) {
 			throw new Exception("Not logged in");
 		}
-		int sequence = persistence.getAndIncrementSeq();
-		message.build(
-			beginString,
-			senderCompId,
-			targetCompId,				
-			LocalDateTime.now(ZoneOffset.UTC).format( SENDING_TIME_FORMATTER ),
-			sequence
-		);
+		if ( isDup ) {
+			message.addHeader(IFixConst.PossDupFlag, "Y");
+		} else {
+			int sequence = persistence.getAndIncrementSeq();
+			message.build(
+					beginString,
+					senderCompId,
+					targetCompId,				
+					LocalDateTime.now(ZoneOffset.UTC).format( SENDING_TIME_FORMATTER ),
+					sequence
+				);			
+			persistence.store( sequence, message );
+		}
 		
 		transport.send( message );
-		persistence.store( sequence, message );
 		this.lastSndTime = System.nanoTime();
 		System.out.println(">> outgoing: "+message);
 		return this;
@@ -262,16 +226,21 @@ public abstract class FixSession implements IMessagesDispatcher {
 					this.sessionStatus = SessionStatus.ACTIVE; // TODO: check field 112
 					break;
 				case "1": // test request					
-					sendHeartbeat( msg.getField( new FixTag(112), new FixField() ) );
+					sendHeartbeat( msg.getField( IFixConst.TAG_112 ) );
 					break;
 				case "2":
 					// Resend Request
+					FixField BeginSeqNo = msg.getField( IFixConst.BeginSeqNo );
+					FixField EndSeqNo = msg.getField( IFixConst.EndSeqNo );
+					processResendRequest( BeginSeqNo, EndSeqNo );
 					break;
 				case "3":
 					// Reject
 					break;
 				case "4":
-					// Sequence Reset
+					// SequenceReset GapFill 
+					
+					
 					break;					
 				case "5": // logout
 					this.sessionStatus = SessionStatus.LOGGED_OUT;
@@ -286,6 +255,20 @@ public abstract class FixSession implements IMessagesDispatcher {
 		return true;
 	}
 	
+	void processResendRequest(FixField beginSeqNo, FixField endSeqNo) throws Exception {
+		int endIdx = (!endSeqNo.is("0"))?endSeqNo.valueAsInt():persistence.getLastSeq();
+		int startIdx = beginSeqNo.valueAsInt();
+		
+		for ( int i=startIdx; i<=endIdx; i++) {
+			FixMessage msg = persistence.findMessageBySeq( i );
+			if ( msg!=null ) {
+				if (!msg.getMsgType().in("A", "5", "2", "0", "1", "4")) {
+					send(msg, true);
+				}
+			}
+		}
+	}
+
 	/* IMEssageDispatcher
 	 * 
 	 * */

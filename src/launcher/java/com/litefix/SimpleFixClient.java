@@ -41,12 +41,11 @@ static ClientFixSession session;
 			}			
 		};
 
-		session =(ClientFixSession)new ClientFixSession( listener )
+		session =(ClientFixSession)new FixSessionBuilder( listener )
 				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
 				.withSenderCompId(senderCompId)
 				.withTargetCompId(targetCompId)
-				.validate()
-				.doWarmup(5000);
+				.build();
 		
 		session.doConnect(serverHost, serverPort).doLogon( );
 	}

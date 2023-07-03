@@ -1,6 +1,7 @@
 package com.litefix.modules.impl;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.litefix.models.FixMessage;
@@ -19,6 +20,11 @@ public class InMemoryPersistence implements IPersistence{
 	}
 	
 	@Override
+	public int getLastSeq() {
+		return outgoingSeq;
+	}
+	
+	@Override
 	public int getAndIncrementSeq() {
 		return ++outgoingSeq;
 	}
@@ -26,6 +32,16 @@ public class InMemoryPersistence implements IPersistence{
 	@Override
 	public void store(int sequence, FixMessage message) {
 		this.sentMessages.put(sequence, message);
+	}
+
+	@Override
+	public List<FixMessage> getAllMessagesInRange(int beginSeq, int endSeq) {
+		throw new RuntimeException("Not implemented");
+	}
+
+	@Override
+	public FixMessage findMessageBySeq(int i) {
+		return sentMessages.get( i );
 	}
 
 }

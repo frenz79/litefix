@@ -34,6 +34,10 @@ public class FixField implements Comparable<Object>{
 		
 	}
 	
+	public FixField( FixTag tag, String v ){
+		this( tag.getTagNum(), v);		
+	}
+	
 	public FixField( int tag, String v ){
 		this( NumbersCache.toString(tag), v);		
 	}
@@ -137,8 +141,13 @@ public class FixField implements Comparable<Object>{
 		return ArrayUtils.findArray(buffer.array(), v.array(), startVal, endVal)>=0;
 	}
 	
-	public String valueString() {
+	public String valueAsString() {
 		return new String( buffer.array(), startVal, endVal-startVal);
+	}
+	
+	public int valueAsInt() {
+		String val = valueAsString();
+		return NumbersCache.fromString(val);
 	}
 	
 	@Override
