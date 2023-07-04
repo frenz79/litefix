@@ -6,14 +6,18 @@ import com.litefix.models.FixMessage;
 
 public interface IPersistence {
 
-	int getAndIncrementSeq();
+	int getAndIncrementOutgoingSeq();
 
-	void store(int sequence, FixMessage message);
+	void storeOutgoingMessage(int sequence, FixMessage message);
 
-	List<FixMessage> getAllMessagesInRange(int valueAsInt, int valueAsInt2);
+	List<FixMessage> getAllOutgoingMessagesInRange(int valueAsInt, int valueAsInt2);
 
-	FixMessage findMessageBySeq(int i);
+	FixMessage findOutgoingMessageBySeq(int i);
 
-	int getLastSeq();
+	int getLastOutgoingSeq();
+
+	void reset();
+
+	int getLastIncomingSeq();
 
 }

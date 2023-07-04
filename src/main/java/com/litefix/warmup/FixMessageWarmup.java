@@ -1,5 +1,6 @@
 package com.litefix.warmup;
 
+import com.litefix.commons.IFixConst;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
 
@@ -17,8 +18,8 @@ public class FixMessageWarmup {
 			msg.getBuffer();
 			msg.getHeaderLen();
 			msg.getHeaderStart();
-			msg.getStringValue( FixTag.TAG_SYMBOL );
-			msg.getIntegerValue( FixTag.HEADER_TAG_SEQ_NUM );
+			msg.getStringValue( IFixConst.Symbol );
+			msg.getIntegerValue( IFixConst.SeqNum );
 			msg.reset();
 		}
 	}	

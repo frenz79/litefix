@@ -4,12 +4,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.litefix.commons.IFixConst;
 import com.litefix.models.FixMessage;
 import com.litefix.modules.IPersistence;
 
 public class InMemoryPersistence implements IPersistence{
 	private final String beginString, senderCompId, targetCompId;
 
+	private int incomingSeq = 0;
 	private int outgoingSeq = 0;
 	private Map<Integer,FixMessage> sentMessages = new HashMap<>(64000);
 	
@@ -20,28 +22,39 @@ public class InMemoryPersistence implements IPersistence{
 	}
 	
 	@Override
-	public int getLastSeq() {
+	public int getLastOutgoingSeq() {
 		return outgoingSeq;
 	}
 	
 	@Override
-	public int getAndIncrementSeq() {
+	public int getAndIncrementOutgoingSeq() {
 		return ++outgoingSeq;
 	}
 
 	@Override
-	public void store(int sequence, FixMessage message) {
-		this.sentMessages.put(sequence, message);
+	public void storeOutgoingMessage(int sequence, FixMessage message) {
+		this.sentMessages.put(sequence, message.clone());
 	}
 
 	@Override
-	public List<FixMessage> getAllMessagesInRange(int beginSeq, int endSeq) {
+	public List<FixMessage> getAllOutgoingMessagesInRange(int beginSeq, int endSeq) {
 		throw new RuntimeException("Not implemented");
 	}
 
 	@Override
-	public FixMessage findMessageBySeq(int i) {
+	public FixMessage findOutgoingMessageBySeq(int i) {
 		return sentMessages.get( i );
+	}
+	
+	@Override
+	public void reset() {
+		this.outgoingSeq = 0;
+		this.sentMessages.clear();
+	}
+
+	@Override
+	public int getLastIncomingSeq() {
+		return incomingSeq;
 	}
 
 }

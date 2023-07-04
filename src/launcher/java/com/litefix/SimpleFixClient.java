@@ -63,9 +63,9 @@ static ClientFixSession session;
 	}		
 	
 	public static void handleQuote( FixMessage msg ) {
-		String symbol = msg.getStringValue( FixTag.TAG_SYMBOL );
+		String symbol = msg.getStringValue( IFixConst.Symbol );
 		String streamID = msg.getStringValue( new FixTag(10000));
-		String bookID = msg.getStringValue( FixTag.TAG_QUOTE_ID );
+		String bookID = msg.getStringValue( IFixConst.QuoteID );
 	
 		System.out.println("streamID:  " + streamID + " |   bookID: " + bookID);
 		

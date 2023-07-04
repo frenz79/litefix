@@ -8,7 +8,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
 import com.litefix.commons.IFixConst;
-import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
 import com.litefix.models.SessionStatus;
@@ -28,7 +27,7 @@ public class FixSessionTest {
 
 		@Override
 		public ITransport send(FixMessage msg) throws IOException {
-			System.out.println("-->"+msg);
+			System.out.println("-->"+msg.toString());
 			return this;
 		}
 
@@ -158,7 +157,11 @@ public class FixSessionTest {
 		
 		System.out.println("------> processResendRequest()");
 		
-		((FixSession)session).processResendRequest( new FixField(IFixConst.BeginSeqNo,"0"), new FixField(IFixConst.EndSeqNo,"2") );
+		((FixSession)session).processResendRequest( 
+			session.getMessageFactory().get().setMsgType("2")
+				.addField( IFixConst.BeginSeqNo, "0" )
+				.addField( IFixConst.EndSeqNo, "4" )
+		);
 	}
 	
 	public static void sendNewOrder( FixSession session ) throws Exception {

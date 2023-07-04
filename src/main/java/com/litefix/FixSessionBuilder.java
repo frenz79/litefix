@@ -40,6 +40,11 @@ public class FixSessionBuilder {
 		return this;
 	}
 	
+	public FixSessionBuilder withResetSeqOnDisconnect( boolean resetSeqOnDisconnect ) {
+		this.session.resetSeqOnDisconnect = resetSeqOnDisconnect;
+		return this;
+	}
+	
 	public FixSessionBuilder withHbIntervalSec( int hbIntervalSec ) {
 		this.session.hbIntervalSec = hbIntervalSec;
 		return this;

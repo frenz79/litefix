@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
+import com.litefix.commons.IFixConst;
+
 @TestInstance(Lifecycle.PER_CLASS)
 public class FixMessageTest {
 
@@ -44,19 +46,19 @@ public class FixMessageTest {
 		assertEquals(msg.getField(new FixTag(108), holder).valueAsString(), "10" );
 		assertEquals(msg.getField(new FixTag(141), holder).valueAsString(), "Y" );
 		
-		assertEquals(msg.toString(), "8=beginString9=7435=A49=senderCompId56=targetCompId52=2023010134=12398=0108=10141=Y10=060");		
+		assertEquals(msg.toString(), "8=beginString9=7935=A49=senderCompId56=targetCompId52=2023010134=12343=N98=0108=10141=Y10=052");		
 		
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).valueAsString(), "senderCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).valueAsString(), "targetCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).valueAsString(), "beginString" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).valueAsString(), "20230101" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).valueAsString(), "123" );
+		assertEquals(msg.getHederField(IFixConst.SenderCompID, holder).valueAsString(), "senderCompId" );
+		assertEquals(msg.getHederField(IFixConst.TargetCompID, holder).valueAsString(), "targetCompId" );
+		assertEquals(msg.getHederField(IFixConst.BeginString, holder).valueAsString(), "beginString" );
+		assertEquals(msg.getHederField(IFixConst.SendingTime, holder).valueAsString(), "20230101" );
+		assertEquals(msg.getHederField(IFixConst.SeqNum, holder).valueAsString(), "123" );
 				
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).is("senderCompId") );
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).is("targetCompId") );
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).is("beginString") );		
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).is("20230101") );
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).is("123") );
+		assertTrue( msg.getHederField(IFixConst.SenderCompID, holder).is("senderCompId") );
+		assertTrue( msg.getHederField(IFixConst.TargetCompID, holder).is("targetCompId") );
+		assertTrue( msg.getHederField(IFixConst.BeginString, holder).is("beginString") );		
+		assertTrue( msg.getHederField(IFixConst.SendingTime, holder).is("20230101") );
+		assertTrue( msg.getHederField(IFixConst.SeqNum, holder).is("123") );
 	}
 	
 	@Test
@@ -77,16 +79,16 @@ public class FixMessageTest {
 		
 		assertEquals(msg.toString(), "8=beginString9=7435=A49=senderCompId56=targetCompId52=2023010134=12398=0108=10141=Y10=060");		
 		
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).valueAsString(), "senderCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).valueAsString(), "targetCompId" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).valueAsString(), "beginString" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).valueAsString(), "20230101" );
-		assertEquals(msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).valueAsString(), "123" );
+		assertEquals(msg.getHederField(IFixConst.SenderCompID, holder).valueAsString(), "senderCompId" );
+		assertEquals(msg.getHederField(IFixConst.TargetCompID, holder).valueAsString(), "targetCompId" );
+		assertEquals(msg.getHederField(IFixConst.BeginString, holder).valueAsString(), "beginString" );
+		assertEquals(msg.getHederField(IFixConst.SendingTime, holder).valueAsString(), "20230101" );
+		assertEquals(msg.getHederField(IFixConst.SeqNum, holder).valueAsString(), "123" );
 				
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SENDER_COMP_ID, holder).is("senderCompId") );
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_TARGET_COMP_ID, holder).is("targetCompId") );
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_BEGIN_STRING, holder).is("beginString") );		
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SENDING_TIME, holder).is("20230101") );
-		assertTrue( msg.getHederField(FixTag.HEADER_TAG_SEQ_NUM, holder).is("123") );
+		assertTrue( msg.getHederField(IFixConst.SenderCompID, holder).is("senderCompId") );
+		assertTrue( msg.getHederField(IFixConst.TargetCompID, holder).is("targetCompId") );
+		assertTrue( msg.getHederField(IFixConst.BeginString, holder).is("beginString") );		
+		assertTrue( msg.getHederField(IFixConst.SendingTime, holder).is("20230101") );
+		assertTrue( msg.getHederField(IFixConst.SeqNum, holder).is("123") );
 	}
 }

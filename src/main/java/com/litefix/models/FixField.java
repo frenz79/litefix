@@ -184,6 +184,18 @@ public class FixField implements Comparable<Object>{
 		return -1;
 	}
 	
+	public void set(String newVal) {
+		byte[] newValBytes = newVal.getBytes();
+		int newValLen = newValBytes.length;
+		
+		if ( endVal-startVal == newValLen ) {
+			for ( int i=0; i<newValLen; i++ ) {
+				buffer.put(startVal+i, newValBytes[i]);
+			}
+		}
+		// TODO....handle
+	}
+	
 	public int getStartTag() {
 		return startTag;
 	}

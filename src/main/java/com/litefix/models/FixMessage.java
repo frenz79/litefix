@@ -3,6 +3,7 @@ package com.litefix.models;
 import java.nio.ByteBuffer;
 
 import com.litefix.caches.NumbersCache;
+import com.litefix.commons.IFixConst;
 import com.litefix.commons.interfaces.IPoolable;
 import com.litefix.commons.utils.ArrayUtils;
 import com.litefix.commons.utils.MathUtils;
@@ -76,9 +77,9 @@ public class FixMessage implements IPoolable {
 	
 	public MsgType getMsgType() {
 		if ( msgType==null ) {
-			int startPos = ArrayUtils.findArray( bufferArray, FixTag.HEADER_TAG_MSG_TYPE.getTagBytes() );
-			startPos += FixTag.HEADER_TAG_MSG_TYPE.getTagBytes().length;			
-			int endPos = ArrayUtils.findByte( bufferArray, FixTag.FIELD_SEPARATOR, startPos );
+			int startPos = ArrayUtils.findArray( bufferArray, IFixConst.MsgType.getTagBytes() );
+			startPos += IFixConst.MsgType.getTagBytes().length;			
+			int endPos = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, startPos );
 			msgType = MsgType.buildFrom(bufferArray, startPos, endPos);
 		}
 		return msgType;
@@ -90,7 +91,7 @@ public class FixMessage implements IPoolable {
 			return false;
 		}
 		startPos += fixTag.getTagBytes().length;
-		int endPos = ArrayUtils.findByte( bufferArray, FixTag.FIELD_SEPARATOR, startPos );		
+		int endPos = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, startPos );		
 		
 		if ( val.length!=endPos-startPos ) {
 			return false;
@@ -112,7 +113,7 @@ public class FixMessage implements IPoolable {
 		
 		for (int i=0; i<val.length; i++ ) {
 			bufferArray[i+headerStart+tag.length] = (byte) (val[i] & 0xFF);
-			bufferArray[i+headerStart+tag.length+1] = FixTag.FIELD_SEPARATOR;
+			bufferArray[i+headerStart+tag.length+1] = IFixConst.FIELD_SEPARATOR;
 			headerLen+=2;
 		}
 		return this;
@@ -127,7 +128,7 @@ public class FixMessage implements IPoolable {
 		
 		for (int i=0; i<val.length; i++ ) {
 			bufferArray[i+headerStart+tag.length] = val[i];
-			bufferArray[i+headerStart+tag.length+1] = FixTag.FIELD_SEPARATOR;
+			bufferArray[i+headerStart+tag.length+1] = IFixConst.FIELD_SEPARATOR;
 			headerLen+=2;
 		}
 		return this;
@@ -145,7 +146,7 @@ public class FixMessage implements IPoolable {
 		System.arraycopy(source, fixField.getStartBuff(), bufferArray, headerStart, sourceLen );		
 		headerLen += sourceLen;
 		
-		bufferArray[headerStart+sourceLen] = FixTag.FIELD_SEPARATOR;
+		bufferArray[headerStart+sourceLen] = IFixConst.FIELD_SEPARATOR;
 		headerLen++;
 	}
 	
@@ -160,7 +161,7 @@ public class FixMessage implements IPoolable {
 		System.arraycopy(val, 0, bufferArray, headerStart+tag.length, val.length);		
 		headerLen += val.length;		
 		
-		bufferArray[headerStart+val.length+tag.length] = FixTag.FIELD_SEPARATOR;	
+		bufferArray[headerStart+val.length+tag.length] = IFixConst.FIELD_SEPARATOR;	
 		headerLen++;
 	
 		return this;
@@ -180,7 +181,7 @@ public class FixMessage implements IPoolable {
 		}
 		startPos += tag.getTagBytes().length;
 		
-		int endPos = ArrayUtils.findByte( bufferArray, FixTag.FIELD_SEPARATOR, startPos );
+		int endPos = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, startPos );
 		return ArrayUtils.toInteger( bufferArray, startPos, endPos );
 	}
 	
@@ -191,7 +192,7 @@ public class FixMessage implements IPoolable {
 		}
 		startPos += tag.getTagBytes().length;
 		
-		int endPos = ArrayUtils.findByte( bufferArray, FixTag.FIELD_SEPARATOR, startPos );
+		int endPos = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, startPos );
 		return new String( bufferArray, startPos, endPos-startPos );
 	}
 	
@@ -201,7 +202,7 @@ public class FixMessage implements IPoolable {
 			return null;
 		}
 		startPos += tag.getTagBytes().length;
-		int endPos = ArrayUtils.findByte( bufferArray, FixTag.FIELD_SEPARATOR, startPos );
+		int endPos = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, startPos );
 		
 		group.moveForward(endPos);
 		return new String( bufferArray, startPos, endPos-startPos );
@@ -218,10 +219,14 @@ public class FixMessage implements IPoolable {
 			return null;
 		}
 		int endTag = startTag + tagBytes.length;
-		int endVal = ArrayUtils.findByte( bufferArray, FixTag.FIELD_SEPARATOR, endTag );		
+		int endVal = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, endTag );		
 		return FixField.fromBuffer( tag, field, buffer, startTag, endTag, startTag, endVal, endTag, endVal );
 	}
 
+	public FixField getHederField( FixTag tag ) {
+		return getField( tag, new FixField() );
+	}
+	
 	public FixField getHederField( FixTag tag, FixField field ) {
 		return getField( tag, field );
 	}
@@ -230,7 +235,7 @@ public class FixMessage implements IPoolable {
 		byte[] source = fixField.getBuffer().array();
 		int sourceLen = fixField.getEndBuff()-fixField.getStartBuff();
 		System.arraycopy(source, fixField.getStartBuff(), bufferArray, bodyStart+bodyLen, sourceLen );
-		bufferArray[bodyStart+bodyLen+sourceLen] = FixTag.FIELD_SEPARATOR;
+		bufferArray[bodyStart+bodyLen+sourceLen] = IFixConst.FIELD_SEPARATOR;
 		bodyLen += sourceLen + 1;
 		return this;
 	}
@@ -249,7 +254,7 @@ public class FixMessage implements IPoolable {
 		bodyLen += source.length;
 		
 		bufferArray[bodyStart+bodyLen] = (byte)(v & 0xFF);		
-		bufferArray[bodyStart+bodyLen+1] = FixTag.FIELD_SEPARATOR;		
+		bufferArray[bodyStart+bodyLen+1] = IFixConst.FIELD_SEPARATOR;		
 		bodyLen+=2;		
 		return this;
 	}
@@ -263,31 +268,34 @@ public class FixMessage implements IPoolable {
 		System.arraycopy(source, 0, bufferArray, bodyStart+bodyLen, source.length);		
 		bodyLen += source.length;
 		
-		bufferArray[bodyStart+bodyLen] = FixTag.FIELD_SEPARATOR;		
+		bufferArray[bodyStart+bodyLen] = IFixConst.FIELD_SEPARATOR;		
 		bodyLen++;		
 		return this;
 	}
 	
 	public FixMessage build( String beginString, String senderCompId, String targetCompId, String sendingTime, int outgoingSeq) {
 		// Reversed order for header fields
-		addHeader( FixTag.HEADER_TAG_SEQ_NUM, outgoingSeq );
-		addHeader( FixTag.HEADER_TAG_SENDING_TIME, sendingTime );
-		addHeader( FixTag.HEADER_TAG_TARGET_COMP_ID, targetCompId );
-		addHeader( FixTag.HEADER_TAG_SENDER_COMP_ID, senderCompId );
-		addHeader( FixTag.HEADER_TAG_MSG_TYPE, msgType.getBytes() );
-		addHeader( FixTag.HEADER_TAG_BODY_LEN, bodyLen+headerLen );
-		addHeader( FixTag.HEADER_TAG_BEGIN_STRING, beginString );		
-
-		String checksum = NumbersCache.toPaddedString(MathUtils.calcChecksum(bufferArray, headerStart, headerStart+headerLen+bodyLen));
-		addField( FixTag.BODY_TAG_CHECKSUM, checksum );		
+		addHeader( IFixConst.PossDupFlag, "N" );	
+		addHeader( IFixConst.SeqNum, outgoingSeq );
+		addHeader( IFixConst.SendingTime, sendingTime );
+		addHeader( IFixConst.TargetCompID, targetCompId );
+		addHeader( IFixConst.SenderCompID, senderCompId );
+		addHeader( IFixConst.MsgType, msgType.getBytes() );
+		addHeader( IFixConst.BodyLen, bodyLen+headerLen );
+		addHeader( IFixConst.BeginString, beginString );		
+		addField( IFixConst.BODY_TAG_CHECKSUM, calcChecksum() );		
 		return this;
-	}	
+	}
+	
+	public String calcChecksum() {
+		return NumbersCache.toPaddedString(MathUtils.calcChecksum(bufferArray, headerStart, headerStart+headerLen+bodyLen));
+	}
 	
 	@Override
 	public String toString() {
 		return new String( bufferArray, 
-				(headerLen+bodyLen)!=0?headerStart:0, 
-				(headerLen+bodyLen)!=0?headerLen+bodyLen:buffer.limit() 
+			(headerLen+bodyLen)!=0?headerStart:0, 
+			(headerLen+bodyLen)!=0?headerLen+bodyLen:buffer.limit() 
 		);				
 	}
 
@@ -319,6 +327,27 @@ public class FixMessage implements IPoolable {
 	public FixMessage setStatus( Status s) {
 		poolStatus = s;
 		return this;
+	}
+	
+	public FixMessage clone() {		
+		int buffStart = headerStart; 
+		int buffEnd = buffStart + headerLen + bodyLen;
+		
+		FixMessage newMsg = new FixMessage(null);
+		newMsg.setMsgType( this.getMsgType().toString() );
+		newMsg.setStatus( this.getStatus() );
+				
+		byte[] buff = new byte[ buffEnd-buffStart ];
+		newMsg.buffer = ByteBuffer.wrap(buff);
+		newMsg.bufferArray = newMsg.buffer.array();
+		System.arraycopy(this.bufferArray, buffStart, newMsg.bufferArray, 0, buff.length);	
+		
+		newMsg.bodyLen = this.bodyLen;
+		newMsg.headerLen = this.headerLen;
+		newMsg.headerStart = 0;
+		newMsg.bodyStart = this.headerLen + 2;
+				
+		return newMsg;		
 	}
 
 }

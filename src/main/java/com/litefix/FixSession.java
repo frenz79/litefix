@@ -1,8 +1,5 @@
 package com.litefix;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
 
 import com.litefix.commons.IFixConst;
@@ -10,10 +7,11 @@ import com.litefix.commons.exceptions.InvalidSessionException;
 import com.litefix.commons.exceptions.InvalidSessionException.CAUSE;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.StringUtils;
+import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
-import com.litefix.models.FixTag;
 import com.litefix.models.MsgType;
+import com.litefix.models.MsgType.TAG;
 import com.litefix.models.SessionStatus;
 import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IMessagesDispatcher;
@@ -32,10 +30,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 	
 	public static int DEFAULT_HB_INTERVAL_SEC = 5;
 	public static boolean DEFAULT_RESET_ON_LOGON = true;
-	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
+	public static boolean DEFAULT_RESET_ON_DISCONNECT = true;
+	public static boolean DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON = false;
 	
-	// 20221216-12:21:31.683
-	private static final DateTimeFormatter SENDING_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
+	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
 	
 	// Mandatory fields to be set
 	String beginString;
@@ -44,7 +42,11 @@ public abstract class FixSession implements IMessagesDispatcher {
 	
 	// Optional fields with default values
 	protected int hbIntervalSec = DEFAULT_HB_INTERVAL_SEC;
+	
 	protected boolean resetSeqOnLogon = DEFAULT_RESET_ON_LOGON;
+	protected boolean resetSeqOnDisconnect = DEFAULT_RESET_ON_DISCONNECT;
+	protected boolean ignoreSeqNumTooLowAtLogon = DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON;
+	
 	private long testRequestTolerance = 1000L;
 	
 	protected IPersistence persistence;
@@ -54,14 +56,6 @@ public abstract class FixSession implements IMessagesDispatcher {
 	protected FixMessageValidator messageValidator;
 	
 	protected SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
-	
-	public SessionStatus getSessionStatus() {
-		return sessionStatus;
-	}
-
-	void setSessionStatus(SessionStatus sessionStatus) {
-		this.sessionStatus = sessionStatus;
-	}
 
 	private long lastRcvTime = 0l;
 	private long lastSndTime = 0l;
@@ -72,39 +66,40 @@ public abstract class FixSession implements IMessagesDispatcher {
 		super();
 		this.fixSessionListener = fixSessionListener;
 	}
-		
-	public String getBeginString() {
-		return beginString;
-	}
-
-	public String getSenderCompId() {
-		return senderCompId;
-	}
-
-	public String getTargetCompId() {
-		return targetCompId;
+	
+	public FixSession send( FixMessage message, int seqNumber ) throws Exception {
+		return send( message, false, seqNumber );
 	}
 	
 	public FixSession send( FixMessage message ) throws Exception {
-		return send( message, false );
+		return send( message, false, -1 );
 	}
 	
 	public FixSession send( FixMessage message, boolean isDup ) throws Exception {
+		return send( message, isDup, -1 );
+	}
+	
+	public FixSession send( FixMessage message, boolean isDup, int seqNumber ) throws Exception {
 		if ( !sessionStatus.equals(SessionStatus.ACTIVE) && !message.getMsgType().is("A")) {
 			throw new Exception("Not logged in");
 		}
 		if ( isDup ) {
-			message.addHeader(IFixConst.PossDupFlag, "Y");
+			message.getField(IFixConst.PossDupFlag).set("Y");
+			// OrigSendingTime(122) = SendingTime
+			message.getField(IFixConst.SendingTime).set( TimeUtils.getSendingTime() );
+			message.getField(IFixConst.BODY_TAG_CHECKSUM).set( message.calcChecksum() );			
 		} else {
-			int sequence = persistence.getAndIncrementSeq();
+			int sequence = (seqNumber<0)?persistence.getAndIncrementOutgoingSeq():seqNumber;
 			message.build(
-					beginString,
-					senderCompId,
-					targetCompId,				
-					LocalDateTime.now(ZoneOffset.UTC).format( SENDING_TIME_FORMATTER ),
-					sequence
-				);			
-			persistence.store( sequence, message );
+				beginString,
+				senderCompId,
+				targetCompId,				
+				TimeUtils.getSendingTime(),
+				sequence
+			);
+			if (!message.getMsgType().in("A", "5", "2", "0", "1", "4")) {
+				persistence.storeOutgoingMessage( sequence, message );
+			}			
 		}
 		
 		transport.send( message );
@@ -113,18 +108,17 @@ public abstract class FixSession implements IMessagesDispatcher {
 		return this;
 	}
 	
-	public FixSession sendReject(FixField refSeqNum, String text, MsgType refMsgType ) throws Exception {
+	public FixSession sendReject(FixField refSeqNum, String text, String refMsgType ) throws Exception {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("3")
 				.addField( refSeqNum ) // TODO: change me
-				.addField( IFixConst.TAG_372, refMsgType.getBytes() )
+				.addField( IFixConst.TAG_372, refMsgType )
 			;
 			
 			if ( text!=null && text.length()>0 ) {
 				msg.addField( IFixConst.TAG_58, text );
-			}
-			
+			}			
 			send( msg ); 
 			return this;
 		} finally {
@@ -140,7 +134,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 				msg.addField(IFixConst.TAG_58, reason);
 			}
 			send( msg );
-			this.sessionStatus = SessionStatus.LOGGED_OUT;
+			setSessionStatus( SessionStatus.LOGGED_OUT );
 			return this;
 		} finally {
 			messagePool.release(msg);
@@ -196,7 +190,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 			if ( SessionStatus.ACTIVE.equals( this.sessionStatus ) ) {
 				if (!SessionStatus.ACTIVE_WAIT.equals( this.sessionStatus ) && now - this.lastRcvTime > (this.hbIntervalSec*1_000_000_000L+testRequestTolerance) ) {
 					sendTestRequest();
-					this.sessionStatus = SessionStatus.ACTIVE_WAIT;
+					setSessionStatus( SessionStatus.ACTIVE_WAIT );
 				}
 				if (now - this.lastSndTime > this.hbIntervalSec*1_000_000_000L ) {
 					sendHeartbeat( null );
@@ -212,61 +206,181 @@ public abstract class FixSession implements IMessagesDispatcher {
 		} else {
 			long delta = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-now);
 			System.out.println("<< incoming processed in ["+delta+"]micros : "+msg); 
-			String msgType = msg.getMsgType().toString();
-						
+			TAG msgType = msg.getMsgType().getTag();
+					
 			if (SessionStatus.LOGON_SENT.equals(sessionStatus)) {
-				if ( "A".equals(msgType) ) {
-					this.sessionStatus = SessionStatus.ACTIVE;
-					fixSessionListener.onLogin();
+				if ( TAG.LOGON.equals(msgType) ) {
+					if ( processLogonResp( msg ) ) {
+						setSessionStatus( SessionStatus.ACTIVE );
+						fixSessionListener.onLoginSuccess();
+					} else {
+						fixSessionListener.onLoginFailed();
+					}
+				} else {
+					System.out.println("Discarded message received while not loggedin:"+msg);
+					// No other message types are expected here
 				}
-				// No other message types are expected here
 			} else if (SessionStatus.ACTIVE.equals(sessionStatus) || SessionStatus.ACTIVE_WAIT.equals(sessionStatus)) {
 				switch(msgType) {
-				case "0": // heartbeat					
-					this.sessionStatus = SessionStatus.ACTIVE; // TODO: check field 112
+				case HEARTBEAT: // heartbeat					
+					setSessionStatus( SessionStatus.ACTIVE ); // TODO: check field 112
 					break;
-				case "1": // test request					
-					sendHeartbeat( msg.getField( IFixConst.TAG_112 ) );
+				case TEST_REQUEST: // test request					
+					sendHeartbeat( msg.getField( IFixConst.TestReqID ) );
 					break;
-				case "2":
+				case RESEND_REQUEST:
+					setSessionStatus( SessionStatus.ACTIVE_RESEND );
 					// Resend Request
-					FixField BeginSeqNo = msg.getField( IFixConst.BeginSeqNo );
-					FixField EndSeqNo = msg.getField( IFixConst.EndSeqNo );
-					processResendRequest( BeginSeqNo, EndSeqNo );
+					processResendRequest( msg );
+					setSessionStatus( SessionStatus.ACTIVE );
 					break;
-				case "3":
-					// Reject
-					break;
-				case "4":
-					// SequenceReset GapFill 
-					
-					
+				case GAP_FILL:
+					processGapFillRequest( msg );				
 					break;					
-				case "5": // logout
-					this.sessionStatus = SessionStatus.LOGGED_OUT;
+				case LOGOUT: // logout
+					setSessionStatus( SessionStatus.LOGGED_OUT );
 					fixSessionListener.onLogout();
 					break;
 				default:
 					messagesDispatcher.dispatch( msg, this );						
 					return false;			
 				}
+			} else {
+				sendReject( msg.getHederField( IFixConst.MsgSeqNum ), "Cannot process message" , msg.getMsgType().toString() );
 			}
 		}
 		return true;
 	}
 	
-	void processResendRequest(FixField beginSeqNo, FixField endSeqNo) throws Exception {
-		int endIdx = (!endSeqNo.is("0"))?endSeqNo.valueAsInt():persistence.getLastSeq();
-		int startIdx = beginSeqNo.valueAsInt();
-		
-		for ( int i=startIdx; i<=endIdx; i++) {
-			FixMessage msg = persistence.findMessageBySeq( i );
-			if ( msg!=null ) {
-				if (!msg.getMsgType().in("A", "5", "2", "0", "1", "4")) {
-					send(msg, true);
+	boolean processGapFillRequest( FixMessage msg ) {
+		try {
+			int lastIncomingSeq = persistence.getLastIncomingSeq();
+			int seqNum = msg.getField(IFixConst.SeqNum).valueAsInt();
+			int newSeqNo = msg.getField(IFixConst.NewSeqNo).valueAsInt();
+			
+			if ( newSeqNo<persistence.getLastOutgoingSeq() ) {						
+				sendReject( 
+					msg.getField( IFixConst.SeqNum ), 
+					String.format("NewSeqNo too small expected %d, received %d", lastIncomingSeq+1, newSeqNo), 
+					"4"
+				);
+				return false;
+			}
+			
+			int startIdx = seqNum;
+			int endIdx = newSeqNo;
+			
+			for ( int i=startIdx; i<=endIdx; i++) {
+				FixMessage dupMsg = persistence.findOutgoingMessageBySeq( i );
+				if ( dupMsg!=null && !dupMsg.getMsgType().in("A", "5", "2", "0", "1", "4")) {
+					send(dupMsg, true);
 				}
 			}
+			
+			return true;
+		} catch( Exception ex ) {
+			ex.printStackTrace( );
+			try {
+				sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), "4" );
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
+		return false;
+	}
+	
+	boolean processLogonResp( FixMessage msg ) {
+		try {
+			int lastIncomingSeq = persistence.getLastIncomingSeq();
+			int seqNum = msg.getField(IFixConst.SeqNum).valueAsInt();	
+			
+			if ( !ignoreSeqNumTooLowAtLogon ) {						
+				int delta = seqNum - lastIncomingSeq;
+				if ( delta>1 ) {					
+					sendReject( 
+						msg.getField( IFixConst.SeqNum ), 
+						String.format("Incoming seq too small in Logon(A) message, expected %d, received %d", lastIncomingSeq+1, seqNum), 
+						"A"
+					);
+					return false;
+				}
+			}
+			
+			FixField NextExpectedMsgSeqNum = msg.getField(IFixConst.NextExpectedMsgSeqNum);
+			if ( NextExpectedMsgSeqNum!=null ) {
+				if ( seqNum!=lastIncomingSeq+1 ) {
+					sendGapFillRequest( seqNum, lastIncomingSeq+1 );
+				}
+			}
+			
+			return true;
+		} catch( Exception ex ) {
+			ex.printStackTrace( );
+			try {
+				sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), "A" );
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return false;
+	}
+		
+	boolean sendGapFillRequest( int BeginSeqNo, int EndSeqNo ) throws Exception {
+		FixMessage msg = null;
+		try {
+			msg = messagePool.get().setMsgType(MsgType.TAG.GAP_FILL.getValue())
+				.addField( IFixConst.GapFillFlag, "Y" ) 
+				.addField( IFixConst.NewSeqNo, EndSeqNo ) 
+			;
+			send( msg, BeginSeqNo );
+		} finally {
+			messagePool.release(msg);
+		}
+		return true;
+	}
+	
+	boolean processResendRequest( FixMessage msg ) {
+		try {
+			FixField beginSeqNo = msg.getField( IFixConst.BeginSeqNo );
+			FixField endSeqNo = msg.getField( IFixConst.EndSeqNo );
+			int maxEndSeqIdx = persistence.getLastOutgoingSeq();			
+			int endIdx = (endSeqNo.is("0"))?maxEndSeqIdx:endSeqNo.valueAsInt();
+			
+			if ( endIdx>maxEndSeqIdx ) {
+				sendReject( 
+					msg.getField( IFixConst.SeqNum ), 
+					String.format("Invalid Resend Request: BeginSeqNo (%d) is greater than expected (%d).",beginSeqNo, endSeqNo),
+					msg.getMsgType().toString()
+				);
+				return false;
+			}
+			if ( endIdx>2147483647 ) {
+				sendReject( 
+					msg.getField( IFixConst.SeqNum ), 
+					"nvalid Resend Request: BeginSeqNo <= 0.",
+					msg.getMsgType().toString()
+				);
+				return false;
+			}
+			
+			int startIdx = beginSeqNo.valueAsInt();
+			
+			for ( int i=startIdx; i<=endIdx; i++) {
+				FixMessage dupMsg = persistence.findOutgoingMessageBySeq( i );
+				if ( dupMsg!=null && !dupMsg.getMsgType().in("A", "5", "2", "0", "1", "4")) {
+					send(dupMsg, true);
+				}
+			}
+			return true;
+		} catch ( Exception ex ) {
+			ex.printStackTrace();
+			try {
+				sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), msg.getMsgType().toString() );
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return false;
 	}
 
 	/* IMEssageDispatcher
@@ -274,21 +388,18 @@ public abstract class FixSession implements IMessagesDispatcher {
 	 * */
 	@Override
 	public void dispatch( FixMessage msg, FixSession s ) {
+		MsgType msgType = msg.getMsgType();
 		try {
-			fixSessionListener.onMessage( msg.getMsgType(), msg );
+			fixSessionListener.onMessage( msgType, msg );
 		} catch ( Exception ex ) {
 			try {
-				sendReject( msg.getField( FixTag.HEADER_TAG_SEQ_NUM, new FixField()), ex.getMessage(), msg.getMsgType() );
+				sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), msgType.toString() );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		} finally {
 			messagePool.release(msg);
 		}
-	}
-
-	public IFixMessagePool getMessageFactory() {
-		return messagePool;
 	}
 
 	public FixSession doWarmup(int iterations) {
@@ -328,8 +439,33 @@ public abstract class FixSession implements IMessagesDispatcher {
 		return this;
 	}
 	
+	public IFixMessagePool getMessageFactory() {
+		return messagePool;
+	}
+	
 	public IFixMessagePool getMessagePool() {
 		return messagePool;
+	}
+	
+	public String getBeginString() {
+		return beginString;
+	}
+
+	public String getSenderCompId() {
+		return senderCompId;
+	}
+
+	public String getTargetCompId() {
+		return targetCompId;
+	}
+	
+	
+	public SessionStatus getSessionStatus() {
+		return sessionStatus;
+	}
+
+	void setSessionStatus(SessionStatus sessionStatus) {
+		this.sessionStatus = sessionStatus;
 	}
 	
 }

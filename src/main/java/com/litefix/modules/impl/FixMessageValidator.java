@@ -1,7 +1,7 @@
 package com.litefix.modules.impl;
 
+import com.litefix.commons.IFixConst;
 import com.litefix.models.FixMessage;
-import com.litefix.models.FixTag;
 
 public class FixMessageValidator {
 
@@ -28,11 +28,11 @@ public class FixMessageValidator {
 	    	
 	    }
 	    
-	    if ( !msg.is( FixTag.HEADER_TAG_SENDER_COMP_ID, targetCompIdBytes )){
+	    if ( !msg.is( IFixConst.SenderCompID, targetCompIdBytes )){
 	    	System.out.println("Invalid TargetCompID");
 	    	return false;
 	    }
-	    if ( !msg.is( FixTag.HEADER_TAG_TARGET_COMP_ID, senderCompIdBytes )){
+	    if ( !msg.is( IFixConst.TargetCompID, senderCompIdBytes )){
 	    	System.out.println("Invalid SenderCompID");
 	    	return false;
 	    }

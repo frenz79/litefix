@@ -7,6 +7,7 @@ public enum SessionStatus {
 	LOGON_RCV,
 	ACTIVE,
 	ACTIVE_WAIT,
+	ACTIVE_RESEND,
 	LOGGED_OUT,
 	DISCONNECTED
 	

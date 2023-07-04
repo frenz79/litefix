@@ -1,8 +1,8 @@
 package com.litefix;
 
+import com.litefix.commons.IFixConst;
 import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
-import com.litefix.models.FixTag;
 import com.litefix.models.SessionStatus;
 
 public class ClientFixSession extends FixSession {
@@ -34,10 +34,13 @@ public class ClientFixSession extends FixSession {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("A")
-				.addField( new FixTag(98), "0" ) // EncryptMethod
-				.addField( new FixTag(108), hbIntervalSec )
-				.addField( new FixTag(141), (resetSeqOnLogon)?'Y':'N' )		
+				.addField( IFixConst.EncryptMethod, "0" ) // EncryptMethod
+				.addField( IFixConst.HeartBtInt, hbIntervalSec )
+				.addField( IFixConst.ResetSeqNumFlag, (resetSeqOnLogon)?'Y':'N' )
 			;
+			if ( resetSeqOnLogon ) {
+				persistence.reset();
+			}
 			for ( FixField add : additionalFields ) {
 				msg.addField(add);
 			}
