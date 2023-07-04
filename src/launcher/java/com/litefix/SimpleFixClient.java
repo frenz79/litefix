@@ -23,9 +23,6 @@ static ClientFixSession session;
 			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
 			
 			@Override
-			public void onLogin() {	System.out.println("Logged IN"); }
-
-			@Override
 			public void onLogout() { System.out.println("Logged OUT"); }
 
 			@Override
@@ -38,6 +35,18 @@ static ClientFixSession session;
 				default:
 					throw new Exception("Unsupported message");
 				}				
+			}
+
+			@Override
+			public void onLoginSuccess() {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void onLoginFailed() {
+				// TODO Auto-generated method stub
+				
 			}			
 		};
 

@@ -69,9 +69,6 @@ public class FixSessionTest {
 	public static class DummyFixSessionListener implements IFixSessionListener {
 		@Override
 		public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
-		
-		@Override
-		public void onLogin() {	System.out.println("Logged IN"); }
 
 		@Override
 		public void onLogout() { System.out.println("Logged OUT"); }
@@ -86,6 +83,18 @@ public class FixSessionTest {
 			default:
 				throw new Exception("Unsupported message");
 			}				
+		}
+
+		@Override
+		public void onLoginSuccess() {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void onLoginFailed() {
+			// TODO Auto-generated method stub
+			
 		}	
 	}
 	
@@ -101,9 +110,6 @@ public class FixSessionTest {
 
 			@Override
 			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
-			
-			@Override
-			public void onLogin() {	System.out.println("Logged IN"); }
 
 			@Override
 			public void onLogout() { System.out.println("Logged OUT"); }
@@ -118,6 +124,18 @@ public class FixSessionTest {
 				default:
 					throw new Exception("Unsupported message");
 				}				
+			}
+
+			@Override
+			public void onLoginSuccess() {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void onLoginFailed() {
+				// TODO Auto-generated method stub
+				
 			}			
 		};
 
@@ -157,7 +175,7 @@ public class FixSessionTest {
 		
 		System.out.println("------> processResendRequest()");
 		
-		((FixSession)session).processResendRequest( 
+		((FixSession)session).getSessionMessageHanlder().processResendRequest( 
 			session.getMessageFactory().get().setMsgType("2")
 				.addField( IFixConst.BeginSeqNo, "0" )
 				.addField( IFixConst.EndSeqNo, "4" )

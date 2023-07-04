@@ -14,15 +14,7 @@ public class ClientFixSession extends FixSession {
 	public ClientFixSession doConnect( String host, int port ) throws Exception {
 		transport.connect( host, port );
 		fixSessionListener.onConnection( true );
-		Thread loopTh = new Thread(() -> {
-			try {
-				runLoop();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		});
-		loopTh.setName("FixSession["+senderCompId+"->"+targetCompId+"]-Loop");
-		loopTh.start();
+		startMainLoop();
 		return this;
 	}
 	
