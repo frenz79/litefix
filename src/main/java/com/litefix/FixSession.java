@@ -98,12 +98,12 @@ public abstract class FixSession implements IMessagesDispatcher {
 		} else {
 			int sequence = (seqNumber<0)?persistence.getAndIncrementOutgoingSeq():seqNumber;
 			message.build(
-					beginString,
-					senderCompId,
-					targetCompId,				
-					TimeUtils.getSendingTime(),
-					sequence
-					);
+				beginString,
+				senderCompId,
+				targetCompId,				
+				TimeUtils.getSendingTime(),
+				sequence
+			);
 			if (!message.getMsgType().in("A", "5", "2", "0", "1", "4")) {
 				persistence.storeOutgoingMessage( sequence, message );
 			}			
@@ -218,10 +218,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 				}
 			} else {
 				sessionMessagesSender.sendReject( 
-						msg.getHederField( IFixConst.MsgSeqNum ), 
-						"Cannot process message" , 
-						msg.getMsgType().toString()
-						);
+					msg.getHederField( IFixConst.MsgSeqNum ), 
+					"Cannot process message" , 
+					msg.getMsgType().toString()
+				);
 			}
 		}
 		return true;

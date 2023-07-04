@@ -1,5 +1,7 @@
 package com.litefix;
 
+import java.util.concurrent.TimeUnit;
+
 import com.litefix.commons.IFixConst;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.TimeUtils;
@@ -44,14 +46,30 @@ static ClientFixSession session;
 
 			@Override
 			public void onLoginSuccess(FixMessage msg) {
-				for ( int i=0; i<10; i++ ) {
-					try {
+				int batchSize = 10;
+				//warmup
+				/*
+				for ( int i=0; i<batchSize; i++ ) {
+					try { 
 						sendNewOrder();
 					} catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
+				*/
+				long startTime = System.nanoTime();
+				for ( int i=0; i<batchSize; i++ ) {
+					try { 
+						sendNewOrder();
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				long endTime = System.nanoTime();
+				
+				System.out.println("Average NewOrder send time="+(TimeUnit.NANOSECONDS.toMicros(endTime-startTime)/batchSize));
 			}
 
 			@Override

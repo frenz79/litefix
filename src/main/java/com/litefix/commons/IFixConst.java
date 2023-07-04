@@ -19,7 +19,7 @@ public interface IFixConst {
 	public static final FixTag TAG_7 = new FixTag(7); 
 	public static final FixTag TAG_16 = new FixTag(16); 
 	public static final FixTag TAG_36 = new FixTag(36); 
-	public static final FixTag TAG_34 = new FixTag(16);  
+	public static final FixTag TAG_34 = new FixTag(34);  
 	public static final FixTag TAG_43 = new FixTag(43);  
 	
 	public static final FixTag TAG_58 = new FixTag(58);
