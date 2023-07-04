@@ -48,7 +48,7 @@ public class FixSessionMessagesSender {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("3")
-				.addField( refSeqNum ) // TODO: change me
+				.addField( IFixConst.RefSeqNum, refSeqNum.valueAsString() )
 				.addField( IFixConst.TAG_372, refMsgType )
 			;
 			

@@ -7,15 +7,75 @@ import com.litefix.models.SessionStatus;
 
 public class ClientFixSession extends FixSession {
 
-	public ClientFixSession(IFixSessionListener fixSessionListener) {
+	private final String host;
+	private final int port;
+	
+	public ClientFixSession(String host, int port, IFixSessionListener fixSessionListener) {
 		super(fixSessionListener);
+		this.host = host;
+		this.port = port;
 	}
 
-	public ClientFixSession doConnect( String host, int port ) throws Exception {
+	public ClientFixSession doConnect( ) throws Exception {
 		transport.connect( host, port );
 		fixSessionListener.onConnection( true );
 		startMainLoop();
+		if ( automaticLogonOnConnect ) {
+			doLogon();
+		}
 		return this;
+	}
+	
+	public ClientFixSession doConnectAndRetry( long retryWaitTimeMillis ) throws Exception {
+		while( true ) {
+			try {
+				transport.connect( host, port );
+				break;
+			} catch ( Exception ex1 ) {
+				System.out.println("Connect failed:"+ ex1);
+				Thread.sleep(retryWaitTimeMillis);
+			}
+		}
+		
+		fixSessionListener.onConnection( true );
+		startMainLoop();
+		if ( automaticLogonOnConnect ) {
+			doLogon();
+		}
+		return this;
+	}
+	
+	private void startMainLoop() {		
+		Thread loopTh = new Thread(() -> {
+			try {
+				messagePoller();
+			} catch ( Exception ex ) {
+				// Disconnection here ?
+				ex.printStackTrace();
+				if (resetSeqOnDisconnect) {
+					persistence.reset();
+				}
+				sessionStatus = SessionStatus.DISCONNECTED;
+				fixSessionListener.onConnection( false );
+				if ( automaticReconnect ) {
+					while( true ) {
+						try {
+							doConnect();
+							break;
+						} catch ( Exception ex1 ) {
+							System.out.println("Connect failed:"+ ex1);
+							try {
+								Thread.sleep(automaticReconnectRetryDelayMillis);
+							} catch (InterruptedException e) {
+								break;
+							}							
+						}						
+					}
+				}
+			}
+		});
+		loopTh.setName("FixSession["+senderCompId+"->"+targetCompId+"]-Loop");
+		loopTh.start();
 	}
 	
 	public ClientFixSession doLogon( ) throws Exception {

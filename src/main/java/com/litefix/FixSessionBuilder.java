@@ -11,8 +11,14 @@ public class FixSessionBuilder {
 
 	private FixSession session;
 	
-	public FixSessionBuilder( IFixSessionListener fixSessionListener ) {
-		this.session = new ClientFixSession( fixSessionListener );
+	public FixSessionBuilder( String host, int port, IFixSessionListener fixSessionListener ) {
+		this.session = new ClientFixSession( host, port, fixSessionListener);
+	}
+	
+	public FixSession build() throws InvalidSessionException {
+		this.session.validate();
+		this.session.doWarmup(5000);
+		return this.session;
 	}
 		
 	public FixSessionBuilder withMessagesDispatcher(AsyncMessagesDispatcher messagesDispatcher) {
@@ -70,9 +76,25 @@ public class FixSessionBuilder {
 		return this;
 	}
 	
-	public FixSession build() throws InvalidSessionException {
-		this.session.validate();
-		this.session.doWarmup(5000);
-		return this.session;
+	public FixSessionBuilder withLogonTimeoutSec(int logonTimeoutSec) {
+		this.session.logonTimeoutSec = logonTimeoutSec;
+		return this;
 	}
+
+	public FixSessionBuilder withAutomaticReconnect(boolean automaticReconnect, long automaticReconnectRetryDelayMillis ) {
+		this.session.automaticReconnect = automaticReconnect;
+		this.session.automaticReconnectRetryDelayMillis = automaticReconnectRetryDelayMillis;
+		return this;
+	}
+
+	public FixSessionBuilder withAutomaticLogonOnConnect(boolean automaticLogonOnConnect) {
+		this.session.automaticLogonOnConnect = automaticLogonOnConnect;
+		return this;
+	}
+	
+	public FixSessionBuilder withAutomaticLogonOnLogout(boolean automaticLogonOnLogout) {
+		this.session.automaticLogonOnLogout = automaticLogonOnLogout;
+		return this;
+	}	
+	
 }

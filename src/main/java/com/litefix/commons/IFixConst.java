@@ -35,6 +35,15 @@ public interface IFixConst {
 	public static final FixTag TAG_141 = new FixTag(141);
 	public static final FixTag TAG_789 = new FixTag(789);
 	
+	public static final FixTag TAG_11 = new FixTag(11);
+	public static final FixTag TAG_15 = new FixTag(15);
+	public static final FixTag TAG_21 = new FixTag(21);
+	public static final FixTag TAG_38 = new FixTag(38);
+	public static final FixTag TAG_40 = new FixTag(40);
+	public static final FixTag TAG_45 = new FixTag(45);
+	public static final FixTag TAG_54 = new FixTag(54);
+	public static final FixTag TAG_60 = new FixTag(60);
+	
 	public static final FixTag BeginSeqNo = TAG_7; 
 	public static final FixTag EndSeqNo = TAG_16; 
 	public static final FixTag NewSeqNo = TAG_36;
@@ -49,5 +58,13 @@ public interface IFixConst {
 	public static final FixTag NextExpectedMsgSeqNum = TAG_789;	
 	public static final FixTag GapFillFlag = TAG_789;	
 	
-
+	public static final FixTag ClOrdID = TAG_11;	
+	public static final FixTag Currency = TAG_15;	
+	public static final FixTag HandlInst = TAG_21;	
+	public static final FixTag OrderQty = TAG_38;	
+	public static final FixTag OrdType = TAG_40;	
+	public static final FixTag Side = TAG_54;	
+	public static final FixTag TransactTime = TAG_60;
+	public static final FixTag RefSeqNum = TAG_45;
+	
 }

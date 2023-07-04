@@ -1,21 +1,22 @@
 package com.litefix;
 
 import com.litefix.commons.IFixConst;
+import com.litefix.commons.utils.FixUUID;
+import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.FixGroup;
 import com.litefix.models.FixMessage;
 import com.litefix.models.FixTag;
 import com.litefix.models.MsgType;
-import com.litefix.modules.impl.DefaultFixMessagePool;
 
 public class SimpleFixClient {
 
 static ClientFixSession session;
 	
 	public static void main( String[] args ) throws Exception {
-		String serverHost = "";
-		int serverPort = 0;
-		String senderCompId ="";
-		String targetCompId = "";
+		String serverHost = "localhost";
+		int serverPort = 5179;
+		String senderCompId ="TESTSEND1";
+		String targetCompId ="TESTTARGET1";
 				
 		IFixSessionListener listener = new IFixSessionListener() {
 
@@ -23,7 +24,7 @@ static ClientFixSession session;
 			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
 			
 			@Override
-			public void onLogout() { System.out.println("Logged OUT"); }
+			public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
 
 			@Override
 			public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
@@ -32,42 +33,66 @@ static ClientFixSession session;
 					handleQuote( msg );
 				//	sendNewOrder( msgFactory );
 					break;
+				case "D":
+					break;
+				case "3":
+					break;
 				default:
 					throw new Exception("Unsupported message");
 				}				
 			}
 
 			@Override
-			public void onLoginSuccess() {
-				// TODO Auto-generated method stub
-				
+			public void onLoginSuccess(FixMessage msg) {
+				for ( int i=0; i<10; i++ ) {
+					try {
+						sendNewOrder();
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 			}
 
 			@Override
-			public void onLoginFailed() {
+			public void onLoginFailed(FixMessage msg) {
 				// TODO Auto-generated method stub
 				
 			}			
 		};
 
-		session =(ClientFixSession)new FixSessionBuilder( listener )
+		session =(ClientFixSession)new FixSessionBuilder(serverHost, serverPort, listener )
 				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
 				.withSenderCompId(senderCompId)
 				.withTargetCompId(targetCompId)
+				.withHbIntervalSec(30)
+		//		.withResetSeqOnDisconnect(false)
+		//		.withResetSeqOnLogon(false)
+				.withLogonTimeoutSec(5)
+				.withAutomaticLogonOnConnect(true)
+				.withAutomaticLogonOnLogout(true)
+				.withAutomaticReconnect(true, 500L)
 				.build();
-		
-		session.doConnect(serverHost, serverPort).doLogon( );
+				
+		session.doConnectAndRetry( 1000L );
 	}
 	
-	public static void sendNewOrder( DefaultFixMessagePool msgFactory ) throws Exception {
+	public static void sendNewOrder( ) throws Exception {
 		FixMessage msg = null;
 		try {
-			msg = msgFactory.get().setMsgType("D")
-				.addField( IFixConst.TAG_98, "0" )
-				.addField( IFixConst.TAG_108, "");
+			msg = session.getMessagePool().get().setMsgType("D")
+				.addField( IFixConst.Symbol, "IT0000000000" )
+				.addField( IFixConst.ClOrdID, FixUUID.random() )
+				.addField( IFixConst.Currency, "EUR" )
+				.addField( IFixConst.HandlInst, '1' )
+				.addField( IFixConst.OrderQty, "1000" )
+				.addField( IFixConst.OrdType, '1' )
+				.addField( IFixConst.Side, '1' )
+				.addField( IFixConst.TransactTime, TimeUtils.getSendingTime() );		
+				
 			session.send(msg);
 		} finally {
-			msgFactory.release(msg);
+			session.getMessagePool().release(msg);
 		}		
 	}		
 	

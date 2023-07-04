@@ -71,7 +71,7 @@ public class FixSessionTest {
 		public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
 
 		@Override
-		public void onLogout() { System.out.println("Logged OUT"); }
+		public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
 
 		@Override
 		public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
@@ -86,13 +86,13 @@ public class FixSessionTest {
 		}
 
 		@Override
-		public void onLoginSuccess() {
+		public void onLoginSuccess(FixMessage msg) {
 			// TODO Auto-generated method stub
 			
 		}
 
 		@Override
-		public void onLoginFailed() {
+		public void onLoginFailed(FixMessage msg) {
 			// TODO Auto-generated method stub
 			
 		}	
@@ -112,7 +112,7 @@ public class FixSessionTest {
 			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
 
 			@Override
-			public void onLogout() { System.out.println("Logged OUT"); }
+			public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
 
 			@Override
 			public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
@@ -127,19 +127,19 @@ public class FixSessionTest {
 			}
 
 			@Override
-			public void onLoginSuccess() {
+			public void onLoginSuccess(FixMessage msg) {
 				// TODO Auto-generated method stub
 				
 			}
 
 			@Override
-			public void onLoginFailed() {
+			public void onLoginFailed(FixMessage msg) {
 				// TODO Auto-generated method stub
 				
 			}			
 		};
 
-		ClientFixSession session =(ClientFixSession)new FixSessionBuilder( listener )
+		ClientFixSession session =(ClientFixSession)new FixSessionBuilder( serverHost, serverPort, listener )
 				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
 				.withSenderCompId(senderCompId)
 				.withTargetCompId(targetCompId)
@@ -148,14 +148,14 @@ public class FixSessionTest {
 				.withHbIntervalSec(5)
 				.build();
 		
-		session.doConnect(serverHost, serverPort).doLogon( );
+		session.doConnect( ).doLogon( );
 		
 		while(true) {}
 	}
 	
 	@Test
 	public void testPersistence() throws Exception {
-		ClientFixSession session =(ClientFixSession)new FixSessionBuilder( new DummyFixSessionListener() )
+		ClientFixSession session =(ClientFixSession)new FixSessionBuilder( "", 0,new DummyFixSessionListener() )
 				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
 				.withSenderCompId("senderCompId")
 				.withTargetCompId("targetCompId")

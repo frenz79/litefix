@@ -25,28 +25,34 @@ import com.litefix.warmup.MathUtilsWarmup;
 import com.litefix.warmup.NumbersCacheWarmup;
 
 public abstract class FixSession implements IMessagesDispatcher {
-	
+
+	public static int DEFAULT_LOGON_TIMEOUT_SEC = 5;
 	public static int DEFAULT_HB_INTERVAL_SEC = 5;
 	public static boolean DEFAULT_RESET_ON_LOGON = true;
 	public static boolean DEFAULT_RESET_ON_DISCONNECT = true;
 	public static boolean DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON = false;
-	
+	public static boolean DEFAULT_AUTOMATIC_LOGON = true;
+	public static boolean DEFAULT_AUTOMATIC_RECONNECT = true;	
 	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
-	
+
 	// Mandatory fields to be set
 	String beginString;
 	String senderCompId;
 	String targetCompId;
-	
+
 	// Optional fields with default values
+	protected boolean automaticLogonOnConnect = DEFAULT_AUTOMATIC_LOGON;
+	protected boolean automaticLogonOnLogout = DEFAULT_AUTOMATIC_LOGON;	
+	protected boolean automaticReconnect = DEFAULT_AUTOMATIC_RECONNECT;
+	protected long automaticReconnectRetryDelayMillis = 100L;
+	protected int logonTimeoutSec = DEFAULT_LOGON_TIMEOUT_SEC;
 	protected int hbIntervalSec = DEFAULT_HB_INTERVAL_SEC;
-	
 	protected boolean resetSeqOnLogon = DEFAULT_RESET_ON_LOGON;
 	protected boolean resetSeqOnDisconnect = DEFAULT_RESET_ON_DISCONNECT;
 	protected boolean ignoreSeqNumTooLowAtLogon = DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON;
-	
+
 	private long testRequestTolerance = 1000L;
-	
+
 	protected FixSessionMessagesSender sessionMessagesSender;
 	protected FixSessionMessagesHandler sessionMessageHanlder;
 
@@ -55,31 +61,31 @@ public abstract class FixSession implements IMessagesDispatcher {
 	protected ITransport transport;
 	protected IMessagesDispatcher messagesDispatcher;
 	protected FixMessageValidator messageValidator;
-	
+
 	protected SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
 
 	private long lastRcvTime = 0l;
 	private long lastSndTime = 0l;
-	
+
 	protected final IFixSessionListener fixSessionListener;
-	
+
 	public FixSession( IFixSessionListener fixSessionListener ) {
 		super();
 		this.fixSessionListener = fixSessionListener;
 	}
-	
+
 	public FixSession send( FixMessage message, int seqNumber ) throws Exception {
 		return send( message, false, seqNumber );
 	}
-	
+
 	public FixSession send( FixMessage message ) throws Exception {
 		return send( message, false, -1 );
 	}
-	
+
 	public FixSession send( FixMessage message, boolean isDup ) throws Exception {
 		return send( message, isDup, -1 );
 	}
-	
+
 	public FixSession send( FixMessage message, boolean isDup, int seqNumber ) throws Exception {
 		if ( !sessionStatus.equals(SessionStatus.ACTIVE) && !message.getMsgType().is("A")) {
 			throw new Exception("Not logged in");
@@ -92,23 +98,23 @@ public abstract class FixSession implements IMessagesDispatcher {
 		} else {
 			int sequence = (seqNumber<0)?persistence.getAndIncrementOutgoingSeq():seqNumber;
 			message.build(
-				beginString,
-				senderCompId,
-				targetCompId,				
-				TimeUtils.getSendingTime(),
-				sequence
-			);
+					beginString,
+					senderCompId,
+					targetCompId,				
+					TimeUtils.getSendingTime(),
+					sequence
+					);
 			if (!message.getMsgType().in("A", "5", "2", "0", "1", "4")) {
 				persistence.storeOutgoingMessage( sequence, message );
 			}			
 		}
-		
+
 		transport.send( message );
 		this.lastSndTime = System.nanoTime();
 		System.out.println(">> outgoing: "+message);
 		return this;
 	}
-	
+
 	public FixSession doLogout( String reason ) throws Exception {
 		FixMessage msg = null;
 		try {
@@ -123,46 +129,28 @@ public abstract class FixSession implements IMessagesDispatcher {
 			messagePool.release(msg);
 		}
 	}	
-	
-	protected void startMainLoop() {
-		Thread loopTh = new Thread(() -> {
-			try {
-				runLoop();
-			} catch (Exception ex) {
-				// Disconnection here ?
-				ex.printStackTrace();
-				if (resetSeqOnDisconnect) {
-					persistence.reset();
-				}
-				sessionStatus = SessionStatus.DISCONNECTED;
-				fixSessionListener.onConnection( false );
-			}
-		});
-		loopTh.setName("FixSession["+senderCompId+"->"+targetCompId+"]-Loop");
-		loopTh.start();
-	}
 
-	
-	private void runLoop() throws Exception {
+	void messagePoller() throws Exception {
 		FixMessage msg = this.messagePool.get();
 		byte[] beginMessageDelimiter = ("8="+beginString+"9=").getBytes();
-		
+
 		messageValidator.setSenderCompId(senderCompId);
 		messageValidator.setTargetCompId(targetCompId);
-		
+
 		while ( true ) {
+
 			msg.reset();
 			long now = System.nanoTime();
-			
+
 			if ( this.transport.pollMessage( msg.getBuffer(), beginMessageDelimiter ) ) {				
 				this.lastRcvTime = now;
-				
+
 				if (!handleFixMessage( msg, now ) ) {
 					msg = this.messagePool.get();
 					msg.reset();
 				}
 			}
-			
+
 			if ( SessionStatus.ACTIVE.equals( this.sessionStatus ) ) {
 				if (!SessionStatus.ACTIVE_WAIT.equals( this.sessionStatus ) && now - this.lastRcvTime > (this.hbIntervalSec*1_000_000_000L+testRequestTolerance) ) {
 					sessionMessagesSender.sendTestRequest();
@@ -174,7 +162,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 			}
 		}
 	}
-	
+
 	private boolean handleFixMessage( FixMessage msg, long now ) throws Exception {
 		if ( !messageValidator.isValid(msg) ) {
 			// TODO:...
@@ -183,18 +171,24 @@ public abstract class FixSession implements IMessagesDispatcher {
 			long delta = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-now);
 			System.out.println("<< incoming processed in ["+delta+"]micros : "+msg); 
 			TAG msgType = msg.getMsgType().getTag();
-					
+
 			if (SessionStatus.LOGON_SENT.equals(sessionStatus)) {
-				if ( TAG.LOGON.equals(msgType) ) {
+				switch(msgType) {
+				case LOGON:
 					if ( sessionMessageHanlder.processLogonResp( msg ) ) {
 						setSessionStatus( SessionStatus.ACTIVE );
-						fixSessionListener.onLoginSuccess();
+						fixSessionListener.onLoginSuccess(msg);
 					} else {
-						fixSessionListener.onLoginFailed();
+						fixSessionListener.onLoginFailed(msg);
 					}
-				} else {
+					break;
+				case LOGOUT:
+					setSessionStatus( SessionStatus.LOGGED_OUT );
+					fixSessionListener.onLogout(msg);
+					break;
+				default:
 					System.out.println("Discarded message received while not loggedin:"+msg);
-					// No other message types are expected here
+					break;
 				}
 			} else if (SessionStatus.ACTIVE.equals(sessionStatus) || SessionStatus.ACTIVE_WAIT.equals(sessionStatus)) {
 				switch(msgType) {
@@ -216,14 +210,18 @@ public abstract class FixSession implements IMessagesDispatcher {
 					break;					
 				case LOGOUT: // logout
 					setSessionStatus( SessionStatus.LOGGED_OUT );
-					fixSessionListener.onLogout();
+					fixSessionListener.onLogout(msg);
 					break;
 				default:
 					messagesDispatcher.dispatch( msg, this );						
 					return false;			
 				}
 			} else {
-				sessionMessagesSender.sendReject( msg.getHederField( IFixConst.MsgSeqNum ), "Cannot process message" , msg.getMsgType().toString() );
+				sessionMessagesSender.sendReject( 
+						msg.getHederField( IFixConst.MsgSeqNum ), 
+						"Cannot process message" , 
+						msg.getMsgType().toString()
+						);
 			}
 		}
 		return true;
@@ -266,7 +264,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 		if ( StringUtils.isEmpty(beginString) ) {
 			throw new InvalidSessionException(CAUSE.FIELD_NOT_SET,"beginString");
 		}
-		
+
 		if ( this.messagePool==null ) {
 			this.messagePool = new DefaultFixMessagePool();
 		}
@@ -282,21 +280,21 @@ public abstract class FixSession implements IMessagesDispatcher {
 		if ( this.persistence==null ) {
 			this.persistence = new InMemoryPersistence(beginString,senderCompId,beginString);
 		}
-		
+
 		this.sessionMessagesSender = new FixSessionMessagesSender( this, messagePool );
 		this.sessionMessageHanlder = new FixSessionMessagesHandler( this, persistence, this.sessionMessagesSender );
-		
+
 		return this;
 	}
-	
+
 	public IFixMessagePool getMessageFactory() {
 		return messagePool;
 	}
-	
+
 	public IFixMessagePool getMessagePool() {
 		return messagePool;
 	}
-	
+
 	public String getBeginString() {
 		return beginString;
 	}
@@ -308,8 +306,8 @@ public abstract class FixSession implements IMessagesDispatcher {
 	public String getTargetCompId() {
 		return targetCompId;
 	}
-	
-	
+
+
 	public SessionStatus getSessionStatus() {
 		return sessionStatus;
 	}
@@ -317,7 +315,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 	void setSessionStatus(SessionStatus sessionStatus) {
 		this.sessionStatus = sessionStatus;
 	}
-	
+
 	public FixSessionMessagesHandler getSessionMessageHanlder() {
 		return sessionMessageHanlder;
 	}
