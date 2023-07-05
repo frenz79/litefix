@@ -61,6 +61,12 @@ public interface IFixConst {
 		public static final FixTag Username = new FixTag(553);
 		public static final FixTag Password = new FixTag(554);
 	}
+
+	public static class Logout {
+		public static final FixTag Text = new FixTag(58);
+		public static final FixTag EncodedTextLen = new FixTag(354);
+		public static final FixTag EncodedText = new FixTag(355);
+	}
 		
 	public static class ResendRequest {
 		public static final FixTag BeginSeqNo = new FixTag(7); 
