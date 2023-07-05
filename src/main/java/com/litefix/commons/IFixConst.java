@@ -14,6 +14,9 @@ public interface IFixConst {
 	public static final FixTag MsgType = new FixTag(35);
 	public static final FixTag SenderCompID = new FixTag(49);
 	public static final FixTag TargetCompID = new FixTag(56);
+	public static final FixTag TargetSubID = new FixTag(57);
+	public static final FixTag Username = new FixTag(553);
+	public static final FixTag Password =new FixTag(554);
 	public static final FixTag BODY_TAG_CHECKSUM = new FixTag(10);
 	
 	public static final FixTag TAG_7 = new FixTag(7); 
@@ -43,7 +46,9 @@ public interface IFixConst {
 	public static final FixTag TAG_45 = new FixTag(45);
 	public static final FixTag TAG_54 = new FixTag(54);
 	public static final FixTag TAG_60 = new FixTag(60);
-	
+	public static final FixTag TAG_553 = new FixTag(553);
+	public static final FixTag TAG_554 = new FixTag(554);
+		
 	public static final FixTag BeginSeqNo = TAG_7; 
 	public static final FixTag EndSeqNo = TAG_16; 
 	public static final FixTag NewSeqNo = TAG_36;
@@ -56,7 +61,7 @@ public interface IFixConst {
 	public static final FixTag EncryptMethod = TAG_98;
 	public static final FixTag TestReqID = TAG_112;
 	public static final FixTag NextExpectedMsgSeqNum = TAG_789;	
-	public static final FixTag GapFillFlag = TAG_789;	
+	public static final FixTag GapFillFlag = TAG_123;	
 	
 	public static final FixTag ClOrdID = TAG_11;	
 	public static final FixTag Currency = TAG_15;	
@@ -65,6 +70,5 @@ public interface IFixConst {
 	public static final FixTag OrdType = TAG_40;	
 	public static final FixTag Side = TAG_54;	
 	public static final FixTag TransactTime = TAG_60;
-	public static final FixTag RefSeqNum = TAG_45;
-	
+	public static final FixTag RefSeqNum = TAG_45;	
 }
