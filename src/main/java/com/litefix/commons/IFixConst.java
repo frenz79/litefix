@@ -61,7 +61,7 @@ public interface IFixConst {
 		public static final FixTag Username = new FixTag(553);
 		public static final FixTag Password = new FixTag(554);
 	}
-
+	
 	public static class Logout {
 		public static final FixTag Text = new FixTag(58);
 		public static final FixTag EncodedTextLen = new FixTag(354);
@@ -78,13 +78,23 @@ public interface IFixConst {
 		public static final FixTag MsgSeqNum = new FixTag(34); 
 		public static final FixTag GapFillFlag = new FixTag(123);
 	}
-
+	
 	public static class Heartbeat {
 		public static final FixTag TestReqID = new FixTag(112);  
 	}
 
 	public static class TestRequest {
 		public static final FixTag TestReqID = new FixTag(112);  
+	}
+	
+	public static class Reject {
+		public static final FixTag RefSeqNum = new FixTag(45); 
+		public static final FixTag RefTagID = new FixTag(371); 
+		public static final FixTag RefMsgType = new FixTag(372); 
+		public static final FixTag SessionRejectReason = new FixTag(373); 
+		public static final FixTag Text = new FixTag(58); 
+		public static final FixTag EncodedTextLen = new FixTag(354); 
+		public static final FixTag EncodedText = new FixTag(355); 
 	}
 	
 	public static final FixTag Symbol = new FixTag(55); 
@@ -96,5 +106,4 @@ public interface IFixConst {
 	public static final FixTag OrdType = new FixTag(40); 
 	public static final FixTag Side = new FixTag(54); 
 	public static final FixTag TransactTime = new FixTag(60);
-	public static final FixTag RefSeqNum = new FixTag(45); 
 }
