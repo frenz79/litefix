@@ -40,35 +40,49 @@ public interface IFixConst {
 		public static final FixTag HopRefID = new FixTag(630);	
 	}
 
-	
-	public static final FixTag Username = new FixTag(553);
-	public static final FixTag Password = new FixTag(554);
-	public static final FixTag RawDataLength = new FixTag(95);
-	public static final FixTag RawData = new FixTag(96);
-	public static final FixTag HeartBtInt = new FixTag(108);
-	public static final FixTag EncryptMethod = new FixTag(98);
-	public static final FixTag NextExpectedMsgSeqNum = new FixTag(789);
-	public static final FixTag MaxMessageSize = new FixTag(383);
-	public static final FixTag NoMsgTypes = new FixTag(384);
-	public static final FixTag RefMsgType = new FixTag(372);
-	public static final FixTag MsgDirection = new FixTag(385);
-	public static final FixTag TestMessageIndicator = new FixTag(464);
-	
-	public static final FixTag BODY_TAG_CHECKSUM = new FixTag(10);
-	
+	public static class StandardTrailer {
+		public static final FixTag SignatureLength = new FixTag(93);
+		public static final FixTag Signature = new FixTag(89);	
+		public static final FixTag CheckSum = new FixTag(10);
+	}
+
+	public static class Logon {
+		public static final FixTag EncryptMethod = new FixTag(98);
+		public static final FixTag HeartBtInt = new FixTag(108);
+		public static final FixTag RawDataLength = new FixTag(95);
+		public static final FixTag RawData = new FixTag(96);
+		public static final FixTag ResetSeqNumFlag = new FixTag(141);  
+		public static final FixTag NextExpectedMsgSeqNum = new FixTag(789);
+		public static final FixTag MaxMessageSize = new FixTag(383);
+		public static final FixTag NoMsgTypes = new FixTag(384);
+		public static final FixTag RefMsgType = new FixTag(372);
+		public static final FixTag MsgDirection = new FixTag(385);
+		public static final FixTag TestMessageIndicator = new FixTag(464);
+		public static final FixTag Username = new FixTag(553);
+		public static final FixTag Password = new FixTag(554);
+	}
 		
-	public static final FixTag BeginSeqNo = new FixTag(7); 
-	public static final FixTag EndSeqNo = new FixTag(16);  
-	public static final FixTag NewSeqNo = new FixTag(36); 
+	public static class ResendRequest {
+		public static final FixTag BeginSeqNo = new FixTag(7); 
+		public static final FixTag EndSeqNo = new FixTag(16);  
+		public static final FixTag NewSeqNo = new FixTag(36);
+	}
+
+	public static class SequenceReset {
+		public static final FixTag MsgSeqNum = new FixTag(34); 
+		public static final FixTag GapFillFlag = new FixTag(123);
+	}
+
+	public static class Heartbeat {
+		public static final FixTag TestReqID = new FixTag(112);  
+	}
+
+	public static class TestRequest {
+		public static final FixTag TestReqID = new FixTag(112);  
+	}
 	
-	public static final FixTag MsgSeqNum = new FixTag(34); 
 	public static final FixTag Symbol = new FixTag(55); 
 	public static final FixTag QuoteID = new FixTag(117); 
-	public static final FixTag ResetSeqNumFlag = new FixTag(141); 
-	public static final FixTag TestReqID = new FixTag(112); 
-	public static final FixTag GapFillFlag = new FixTag(123); 
-
-	// NewOrderSingle
 	public static final FixTag ClOrdID = new FixTag(11); 	
 	public static final FixTag Currency = new FixTag(15); 
 	public static final FixTag HandlInst = new FixTag(21); 
