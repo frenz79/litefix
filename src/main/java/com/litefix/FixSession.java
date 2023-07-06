@@ -10,7 +10,7 @@ import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
 import com.litefix.models.MsgType.TAG;
-import com.litefix.models.SessionStatus;
+import com.litefix.models.SessionStateMachine;
 import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IMessagesDispatcher;
 import com.litefix.modules.IPersistence;
@@ -26,30 +26,21 @@ import com.litefix.warmup.NumbersCacheWarmup;
 
 public abstract class FixSession implements IMessagesDispatcher {
 
-	public static int DEFAULT_LOGON_TIMEOUT_SEC = 5;
-	public static int DEFAULT_HB_INTERVAL_SEC = 5;
-	public static boolean DEFAULT_RESET_ON_LOGON = true;
-	public static boolean DEFAULT_RESET_ON_DISCONNECT = true;
-	public static boolean DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON = false;
-	public static boolean DEFAULT_AUTOMATIC_LOGON = true;
-	public static boolean DEFAULT_AUTOMATIC_RECONNECT = true;	
-	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
-
 	// Mandatory fields to be set
 	String beginString;
 	String senderCompId;
 	String targetCompId;
 
 	// Optional fields with default values
-	protected boolean automaticLogonOnConnect = DEFAULT_AUTOMATIC_LOGON;
-	protected boolean automaticLogonOnLogout = DEFAULT_AUTOMATIC_LOGON;	
-	protected boolean automaticReconnect = DEFAULT_AUTOMATIC_RECONNECT;
+	protected boolean automaticLogonOnConnect = IFixConst.DEFAULT_AUTOMATIC_LOGON;
+	protected boolean automaticLogonOnLogout = IFixConst.DEFAULT_AUTOMATIC_LOGON;	
+	protected boolean automaticReconnect = IFixConst.DEFAULT_AUTOMATIC_RECONNECT;
 	protected long automaticReconnectRetryDelayMillis = 100L;
-	protected int logonTimeoutSec = DEFAULT_LOGON_TIMEOUT_SEC;
-	protected int hbIntervalSec = DEFAULT_HB_INTERVAL_SEC;
-	protected boolean resetSeqOnLogon = DEFAULT_RESET_ON_LOGON;
-	protected boolean resetSeqOnDisconnect = DEFAULT_RESET_ON_DISCONNECT;
-	protected boolean ignoreSeqNumTooLowAtLogon = DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON;
+	protected int logonTimeoutSec = IFixConst.DEFAULT_LOGON_TIMEOUT_SEC;
+	protected int hbIntervalSec = IFixConst.DEFAULT_HB_INTERVAL_SEC;
+	protected boolean resetSeqOnLogon = IFixConst.DEFAULT_RESET_ON_LOGON;
+	protected boolean resetSeqOnDisconnect = IFixConst.DEFAULT_RESET_ON_DISCONNECT;
+	protected boolean ignoreSeqNumTooLowAtLogon = IFixConst.DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON;
 
 	private long testRequestTolerance = 1000L;
 
@@ -62,16 +53,147 @@ public abstract class FixSession implements IMessagesDispatcher {
 	protected IMessagesDispatcher messagesDispatcher;
 	protected FixMessageValidator messageValidator;
 
-	protected SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
-
-	private long lastRcvTime = 0l;
-	private long lastSndTime = 0l;
+	protected final SessionStateMachine stateMachine;
 
 	protected final IFixSessionListener fixSessionListener;
 
 	public FixSession( IFixSessionListener fixSessionListener ) {
 		super();
 		this.fixSessionListener = fixSessionListener;
+		this.stateMachine = new SessionStateMachine();
+	}
+
+	/* Called in a separate thread
+	 * 
+	 */
+	void messagePoller() throws Exception {
+		FixMessage msg = this.messagePool.get();
+		byte[] beginMessageDelimiter = ("8="+beginString+"9=").getBytes();
+
+		messageValidator.setSenderCompId(senderCompId);
+		messageValidator.setTargetCompId(targetCompId);
+
+		while ( true ) {
+			msg.reset();
+			long now = System.nanoTime();
+
+			if ( this.transport.pollMessage( msg.getBuffer(), beginMessageDelimiter ) ) {				
+				if (!handleFixMessage( msg, now ) ) {
+					msg = this.messagePool.get();
+					msg.reset();
+				}
+			}			
+			doCiclycTasks( now );
+		}
+	}
+
+	void doCiclycTasks( long now ) throws Exception {
+		// Check for session timeouts
+		if ( this.stateMachine.isLoggedOn() ) {
+			if (( now - this.stateMachine.getLastMessageReceivedNanos())> (this.hbIntervalSec*1_000_000_000L+testRequestTolerance)) {
+				if ( ( now - this.stateMachine.getLastTestRequestSentNanos() )> (this.hbIntervalSec*1_000_000_000L+testRequestTolerance)) {
+					throw new Exception("Connection timedout");
+				} else {
+					this.stateMachine.setLastTestRequestSentNanos(now);
+					sessionMessagesSender.sendTestRequest();
+				}
+			}
+		}
+		// Send HB if necessary
+		if (now - this.stateMachine.getLastMessageSentNanos() > this.hbIntervalSec*1_000_000_000L ) {
+			sessionMessagesSender.sendHeartbeat( null );
+		}
+	}
+
+	private void handleLoginProcess( TAG msgType, FixMessage msg ) {		
+		if ( this.stateMachine.isWaitingForLoginResp( )) {
+			switch(msgType) {
+			case LOGON:
+				boolean logonResult = sessionMessageHanlder.processLogonResp( msg );
+				this.stateMachine.logon(logonResult);
+				fixSessionListener.onLogin(msg, logonResult);
+				break;
+			case LOGOUT:
+				this.stateMachine.logon(false);
+				fixSessionListener.onLogout(msg);
+				break;
+			default:
+				System.out.println("Discarded message received while not loggedin:"+msg);
+				break;
+			}
+		}
+	}
+
+	private boolean handleFixMessage( FixMessage msg, long rcvTime ) throws Exception {
+		// TODO:...
+		if ( !messageValidator.isValid(msg) ) {
+			System.out.println("Discarded!");
+			return true;
+		}
+
+		long validationTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-rcvTime);
+		System.out.println("<< incoming: "+msg); 
+
+		this.stateMachine.setLastMessageReceivedNanos(rcvTime);
+		TAG msgType = msg.getMsgType().getTag();
+		int msgSeqNum = msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt();
+		int expMsgSeqNum = this.persistence.getLastIncomingSeq() + 1;
+
+		// Gap detection
+		if ( msgSeqNum != expMsgSeqNum ) {
+			System.out.println("Gap detected, received "+msgSeqNum+" but expected "+expMsgSeqNum);
+			// TODO: code me
+
+			return true;
+		}
+
+		try  {
+			if ( !this.stateMachine.isLoggedOn() ) {
+				handleLoginProcess( msgType, msg );
+			} else {
+				switch(msgType) {
+				case HEARTBEAT:					
+					// NOP
+					break;
+				case TEST_REQUEST: 				
+					sessionMessagesSender.sendHeartbeat( msg.getField( IFixConst.Heartbeat.TestReqID ) );
+					break;
+				case RESEND_REQUEST:
+					this.stateMachine.setResending( true );
+					sessionMessageHanlder.processResendRequest( msg );
+					this.stateMachine.setResending( false );
+					break;
+				case GAP_FILL:
+					this.stateMachine.setResending( true );
+					sessionMessageHanlder.processGapFillRequest( msg );
+					this.stateMachine.setResending( false );
+					break;					
+				case LOGOUT:
+					this.stateMachine.logon(false);
+					fixSessionListener.onLogout(msg);
+					break;
+				default:
+					try {
+						messagesDispatcher.dispatch( msg, this );						
+						return false;
+					} catch( Exception ex ) {
+						sessionMessagesSender.sendBusinessReject(
+								msgSeqNum,
+								ex.getMessage(),
+								msgType.toString()
+								);
+					}
+				}
+			}
+		} catch (Exception ex) {
+			sessionMessagesSender.sendReject( 
+					msgSeqNum, 
+					ex.getMessage(), 
+					msgType.toString()
+					);
+		}
+
+		return true;
 	}
 
 	public FixSession send( FixMessage message, int seqNumber ) throws Exception {
@@ -87,9 +209,12 @@ public abstract class FixSession implements IMessagesDispatcher {
 	}
 
 	public FixSession send( FixMessage message, boolean isDup, int seqNumber ) throws Exception {
-		if ( !sessionStatus.equals(SessionStatus.ACTIVE) && !message.getMsgType().is("A")) {
+		if ( !this.stateMachine.isLoggedOn() && !message.getMsgType().is("A")) {
 			throw new Exception("Not logged in");
 		}
+
+		long now = System.nanoTime();
+
 		if ( isDup ) {
 			message.getField(IFixConst.StandardHeader.PossDupFlag).set("Y");
 			// OrigSendingTime(122) = SendingTime
@@ -98,19 +223,19 @@ public abstract class FixSession implements IMessagesDispatcher {
 		} else {
 			int sequence = (seqNumber<0)?persistence.getAndIncrementOutgoingSeq():seqNumber;
 			message.build(
-				beginString,
-				senderCompId,
-				targetCompId,				
-				TimeUtils.getSendingTime(),
-				sequence
-			);
+					beginString,
+					senderCompId,
+					targetCompId,				
+					TimeUtils.getSendingTime(),
+					sequence
+					);
 			if (!message.getMsgType().in("A", "5", "2", "0", "1", "4")) {
 				persistence.storeOutgoingMessage( sequence, message );
 			}			
 		}
 
 		transport.send( message );
-		this.lastSndTime = System.nanoTime();
+		this.stateMachine.setLastMessageSentNanos(now);
 		System.out.println(">> outgoing: "+message);
 		return this;
 	}
@@ -123,109 +248,13 @@ public abstract class FixSession implements IMessagesDispatcher {
 				msg.addField(IFixConst.Logout.Text, reason);
 			}
 			send( msg );
-			setSessionStatus( SessionStatus.LOGGED_OUT );
+			this.stateMachine.loggedOut();
 			return this;
 		} finally {
 			messagePool.release(msg);
 		}
-	}	
-
-	void messagePoller() throws Exception {
-		FixMessage msg = this.messagePool.get();
-		byte[] beginMessageDelimiter = ("8="+beginString+"9=").getBytes();
-
-		messageValidator.setSenderCompId(senderCompId);
-		messageValidator.setTargetCompId(targetCompId);
-
-		while ( true ) {
-
-			msg.reset();
-			long now = System.nanoTime();
-
-			if ( this.transport.pollMessage( msg.getBuffer(), beginMessageDelimiter ) ) {				
-				this.lastRcvTime = now;
-
-				if (!handleFixMessage( msg, now ) ) {
-					msg = this.messagePool.get();
-					msg.reset();
-				}
-			}
-
-			if ( SessionStatus.ACTIVE.equals( this.sessionStatus ) ) {
-				if (!SessionStatus.ACTIVE_WAIT.equals( this.sessionStatus ) && now - this.lastRcvTime > (this.hbIntervalSec*1_000_000_000L+testRequestTolerance) ) {
-					sessionMessagesSender.sendTestRequest();
-					setSessionStatus( SessionStatus.ACTIVE_WAIT );
-				}
-				if (now - this.lastSndTime > this.hbIntervalSec*1_000_000_000L ) {
-					sessionMessagesSender.sendHeartbeat( null );
-				}
-			}
-		}
 	}
 
-	private boolean handleFixMessage( FixMessage msg, long now ) throws Exception {
-		if ( !messageValidator.isValid(msg) ) {
-			// TODO:...
-			System.out.println("Discarded!");
-		} else {
-			long delta = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-now);
-			System.out.println("<< incoming processed in ["+delta+"]micros : "+msg); 
-			TAG msgType = msg.getMsgType().getTag();
-
-			if (SessionStatus.LOGON_SENT.equals(sessionStatus)) {
-				switch(msgType) {
-				case LOGON:
-					if ( sessionMessageHanlder.processLogonResp( msg ) ) {
-						setSessionStatus( SessionStatus.ACTIVE );
-						fixSessionListener.onLoginSuccess(msg);
-					} else {
-						fixSessionListener.onLoginFailed(msg);
-					}
-					break;
-				case LOGOUT:
-					setSessionStatus( SessionStatus.LOGGED_OUT );
-					fixSessionListener.onLogout(msg);
-					break;
-				default:
-					System.out.println("Discarded message received while not loggedin:"+msg);
-					break;
-				}
-			} else if (SessionStatus.ACTIVE.equals(sessionStatus) || SessionStatus.ACTIVE_WAIT.equals(sessionStatus)) {
-				switch(msgType) {
-				case HEARTBEAT:					
-					setSessionStatus( SessionStatus.ACTIVE ); // TODO: check field 112
-					break;
-				case TEST_REQUEST: 				
-					sessionMessagesSender.sendHeartbeat( msg.getField( IFixConst.Heartbeat.TestReqID ) );
-					break;
-				case RESEND_REQUEST:
-					setSessionStatus( SessionStatus.ACTIVE_RESEND );
-					sessionMessageHanlder.processResendRequest( msg );
-					setSessionStatus( SessionStatus.ACTIVE );
-					break;
-				case GAP_FILL:
-					setSessionStatus( SessionStatus.ACTIVE_RESEND );
-					sessionMessageHanlder.processGapFillRequest( msg );
-					setSessionStatus( SessionStatus.ACTIVE );
-					break;					
-				case LOGOUT: // logout
-					setSessionStatus( SessionStatus.LOGGED_OUT );
-					fixSessionListener.onLogout(msg);
-					break;
-				default:
-					messagesDispatcher.dispatch( msg, this );						
-					return false;			
-				}
-			} else {
-				sessionMessagesSender.sendReject( 
-					msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ), 
-					"Cannot process message" , 
-					msg.getMsgType().toString()
-				);
-			}
-		}
-		return true;
-	}	
 
 	/* IMEssageDispatcher
 	 * 
@@ -237,7 +266,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 			fixSessionListener.onMessage( msgType, msg );
 		} catch ( Exception ex ) {
 			try {
-				sessionMessagesSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ), ex.getMessage(), msgType.toString() );
+				sessionMessagesSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), msgType.toString() );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -275,7 +304,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 			this.messagesDispatcher = this;
 		}
 		if ( this.messageValidator==null ) {
-			this.messageValidator = new FixMessageValidator(DEFAULT_MSG_VALIDATOR_FLAGS);
+			this.messageValidator = new FixMessageValidator(IFixConst.DEFAULT_MSG_VALIDATOR_FLAGS);
 		}
 		if ( this.persistence==null ) {
 			this.persistence = new InMemoryPersistence(beginString,senderCompId,beginString);
@@ -305,15 +334,6 @@ public abstract class FixSession implements IMessagesDispatcher {
 
 	public String getTargetCompId() {
 		return targetCompId;
-	}
-
-
-	public SessionStatus getSessionStatus() {
-		return sessionStatus;
-	}
-
-	void setSessionStatus(SessionStatus sessionStatus) {
-		this.sessionStatus = sessionStatus;
 	}
 
 	public FixSessionMessagesHandler getSessionMessageHanlder() {

@@ -1,5 +1,6 @@
 package com.litefix;
 
+import com.litefix.caches.NumbersCache;
 import com.litefix.commons.IFixConst;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.models.FixField;
@@ -44,12 +45,35 @@ public class FixSessionMessagesSender {
 		}
 	}
 	
-	boolean sendReject(FixField refSeqNum, String text, String refMsgType ) throws Exception {
+	boolean sendReject(int refSeqNum, String text, String refMsgType ) throws Exception {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("3")
-				.addField( IFixConst.Reject.RefSeqNum, refSeqNum.valueAsString() )
+				.addField( IFixConst.Reject.RefSeqNum, NumbersCache.toString(refSeqNum) )
 				.addField( IFixConst.Reject.RefMsgType, refMsgType )
+				.addField( IFixConst.Reject.SessionRejectReason, "99" ) // 99 = Other
+				.addField( IFixConst.Reject.Text, text )
+			;
+			
+			if ( text!=null && text.length()>0 ) {
+				msg.addField( IFixConst.Reject.Text, text );
+			}			
+			session.send( msg ); 
+			return true;
+		} finally {
+			messagePool.release(msg);
+		}
+	}
+	
+	boolean sendBusinessReject(int refSeqNum, String text, String refMsgType) throws Exception {
+		FixMessage msg = null;
+		try {
+			msg = messagePool.get().setMsgType("j")
+				.addField( IFixConst.BusinessMessageReject.RefSeqNum, NumbersCache.toString(refSeqNum) )
+				.addField( IFixConst.BusinessMessageReject.RefMsgType, refMsgType )
+				.addField( IFixConst.BusinessMessageReject.BusinessRejectRefID, refMsgType )
+				.addField( IFixConst.BusinessMessageReject.BusinessRejectReason, "4" ) // 4 = Application not available
+				.addField( IFixConst.Reject.Text, text )
 			;
 			
 			if ( text!=null && text.length()>0 ) {

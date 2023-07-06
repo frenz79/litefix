@@ -45,7 +45,7 @@ static ClientFixSession session;
 			}
 
 			@Override
-			public void onLoginSuccess(FixMessage msg) {
+			public void onLogin(FixMessage msg, boolean result) {
 				int batchSize = 10;
 				//warmup
 				/*
@@ -70,12 +70,6 @@ static ClientFixSession session;
 				long endTime = System.nanoTime();
 				
 				System.out.println("Average NewOrder send time="+(TimeUnit.NANOSECONDS.toMicros(endTime-startTime)/batchSize));
-			}
-
-			@Override
-			public void onLoginFailed(FixMessage msg) {
-				// TODO Auto-generated method stub
-				
 			}			
 		};
 

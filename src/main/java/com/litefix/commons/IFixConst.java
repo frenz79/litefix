@@ -1,12 +1,23 @@
 package com.litefix.commons;
 
 import com.litefix.models.FixTag;
+import com.litefix.modules.impl.FixMessageValidator;
 
 public interface IFixConst {
 	
 	public static final byte FIELD_SEPARATOR = '\001';
 	public static final String BEGIN_STRING_FIX44 = "FIX.4.4";
 
+
+	public static int DEFAULT_LOGON_TIMEOUT_SEC = 5;
+	public static int DEFAULT_HB_INTERVAL_SEC = 5;
+	public static boolean DEFAULT_RESET_ON_LOGON = true;
+	public static boolean DEFAULT_RESET_ON_DISCONNECT = true;
+	public static boolean DEFAULT_IGNORE_SEQ_NUM_TOO_LOW_AT_LOGON = false;
+	public static boolean DEFAULT_AUTOMATIC_LOGON = true;
+	public static boolean DEFAULT_AUTOMATIC_RECONNECT = true;	
+	public static int DEFAULT_MSG_VALIDATOR_FLAGS = FixMessageValidator.CRC;
+	
 	public static class StandardHeader {
 		public static final FixTag BeginString = new FixTag(8);
 		public static final FixTag BodyLen = new FixTag(9);
@@ -96,6 +107,16 @@ public interface IFixConst {
 		public static final FixTag EncodedTextLen = new FixTag(354); 
 		public static final FixTag EncodedText = new FixTag(355); 
 	}
+	
+	public static class BusinessMessageReject {
+		public static final FixTag RefSeqNum = new FixTag(45);
+		public static final FixTag RefMsgType = new FixTag(372); 
+		public static final FixTag BusinessRejectRefID = new FixTag(379);
+		public static final FixTag BusinessRejectReason = new FixTag(379);		
+		public static final FixTag Text = new FixTag(58); 
+		public static final FixTag EncodedTextLen = new FixTag(354); 
+		public static final FixTag EncodedText = new FixTag(355); 
+	}	
 	
 	public static final FixTag Symbol = new FixTag(55); 
 	public static final FixTag QuoteID = new FixTag(117); 

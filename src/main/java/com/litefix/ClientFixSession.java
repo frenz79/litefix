@@ -3,7 +3,6 @@ package com.litefix;
 import com.litefix.commons.IFixConst;
 import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
-import com.litefix.models.SessionStatus;
 
 public class ClientFixSession extends FixSession {
 
@@ -18,11 +17,13 @@ public class ClientFixSession extends FixSession {
 
 	public ClientFixSession doConnect( ) throws Exception {
 		transport.connect( host, port );
+		this.stateMachine.connected(true);
 		fixSessionListener.onConnection( true );
-		startMainLoop();
 		if ( automaticLogonOnConnect ) {
 			doLogon();
 		}
+		// Start mainLopp only after Login was sent
+		startMainLoop();
 		return this;
 	}
 	
@@ -55,7 +56,7 @@ public class ClientFixSession extends FixSession {
 				if (resetSeqOnDisconnect) {
 					persistence.reset();
 				}
-				sessionStatus = SessionStatus.DISCONNECTED;
+				stateMachine.connected(false);
 				fixSessionListener.onConnection( false );
 				if ( automaticReconnect ) {
 					while( true ) {
@@ -97,7 +98,7 @@ public class ClientFixSession extends FixSession {
 				msg.addField(add);
 			}
 			send( msg );
-			this.sessionStatus = SessionStatus.LOGON_SENT;
+			this.stateMachine.logonSent();
 			return this;
 		} finally {
 			messagePool.release(msg);

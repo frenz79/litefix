@@ -10,7 +10,6 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import com.litefix.commons.IFixConst;
 import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
-import com.litefix.models.SessionStatus;
 import com.litefix.modules.ITransport;
 import com.litefix.modules.impl.AsyncMessagesDispatcher;
 
@@ -86,13 +85,7 @@ public class FixSessionTest {
 		}
 
 		@Override
-		public void onLoginSuccess(FixMessage msg) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void onLoginFailed(FixMessage msg) {
+		public void onLogin(FixMessage msg, boolean result) {
 			// TODO Auto-generated method stub
 			
 		}	
@@ -127,13 +120,7 @@ public class FixSessionTest {
 			}
 
 			@Override
-			public void onLoginSuccess(FixMessage msg) {
-				// TODO Auto-generated method stub
-				
-			}
-
-			@Override
-			public void onLoginFailed(FixMessage msg) {
+			public void onLogin(FixMessage msg, boolean result) {
 				// TODO Auto-generated method stub
 				
 			}			
@@ -164,7 +151,8 @@ public class FixSessionTest {
 				.withHbIntervalSec(5)
 				.build();
 		// Force active status
-		session.setSessionStatus(SessionStatus.ACTIVE);
+		session.stateMachine.connected(true);
+		session.stateMachine.logon(true);
 		
 		sendNewOrder( session );
 		sendNewOrder( session );

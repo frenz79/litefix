@@ -7,6 +7,5 @@ public interface IFixSessionListener {
 	public void onLogout(FixMessage msg);
 	public void onMessage(MsgType sgType, FixMessage msg) throws Exception;
 	public void onConnection(boolean upOrDown);
-	public void onLoginSuccess(FixMessage msg);
-	public void onLoginFailed(FixMessage msg);
+	public void onLogin(FixMessage msg, boolean result);
 }
