@@ -77,8 +77,8 @@ public class FixMessage implements IPoolable {
 	
 	public MsgType getMsgType() {
 		if ( msgType==null ) {
-			int startPos = ArrayUtils.findArray( bufferArray, IFixConst.MsgType.getTagBytes() );
-			startPos += IFixConst.MsgType.getTagBytes().length;			
+			int startPos = ArrayUtils.findArray( bufferArray, IFixConst.StandardHeader.MsgType.getTagBytes() );
+			startPos += IFixConst.StandardHeader.MsgType.getTagBytes().length;			
 			int endPos = ArrayUtils.findByte( bufferArray, IFixConst.FIELD_SEPARATOR, startPos );
 			msgType = MsgType.buildFrom(bufferArray, startPos, endPos);
 		}
@@ -275,15 +275,15 @@ public class FixMessage implements IPoolable {
 	
 	public FixMessage build( String beginString, String senderCompId, String targetCompId, String sendingTime, int outgoingSeq) {
 		// Reversed order for header fields
-		addHeader( IFixConst.PossDupFlag, "N" );	
-		addHeader( IFixConst.SeqNum, outgoingSeq );
-		addHeader( IFixConst.SendingTime, sendingTime );
-		addHeader( IFixConst.TargetCompID, targetCompId );
-		addHeader( IFixConst.SenderCompID, senderCompId );
-		addHeader( IFixConst.MsgType, msgType.getBytes() );
-		addHeader( IFixConst.BodyLen, bodyLen+headerLen );
-		addHeader( IFixConst.BeginString, beginString );		
-		addField( IFixConst.BODY_TAG_CHECKSUM, calcChecksum() );		
+		addHeader( IFixConst.StandardHeader.PossDupFlag, "N" );	
+		addHeader( IFixConst.StandardHeader.MsgSeqNum, outgoingSeq );
+		addHeader( IFixConst.StandardHeader.SendingTime, sendingTime );
+		addHeader( IFixConst.StandardHeader.TargetCompID, targetCompId );
+		addHeader( IFixConst.StandardHeader.SenderCompID, senderCompId );
+		addHeader( IFixConst.StandardHeader.MsgType, msgType.getBytes() );
+		addHeader( IFixConst.StandardHeader.BodyLen, bodyLen+headerLen );
+		addHeader( IFixConst.StandardHeader.BeginString, beginString );		
+		addField( IFixConst.StandardTrailer.CheckSum, calcChecksum() );		
 		return this;
 	}
 	

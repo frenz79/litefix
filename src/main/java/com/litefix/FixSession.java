@@ -91,10 +91,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 			throw new Exception("Not logged in");
 		}
 		if ( isDup ) {
-			message.getField(IFixConst.PossDupFlag).set("Y");
+			message.getField(IFixConst.StandardHeader.PossDupFlag).set("Y");
 			// OrigSendingTime(122) = SendingTime
-			message.getField(IFixConst.SendingTime).set( TimeUtils.getSendingTime() );
-			message.getField(IFixConst.BODY_TAG_CHECKSUM).set( message.calcChecksum() );			
+			message.getField(IFixConst.StandardHeader.SendingTime).set( TimeUtils.getSendingTime() );
+			message.getField(IFixConst.StandardTrailer.CheckSum).set( message.calcChecksum() );			
 		} else {
 			int sequence = (seqNumber<0)?persistence.getAndIncrementOutgoingSeq():seqNumber;
 			message.build(
@@ -120,7 +120,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 		try {
 			msg = messagePool.get().setMsgType("5");
 			if ( reason!=null && !reason.isEmpty() ) {
-				msg.addField(IFixConst.TAG_58, reason);
+				msg.addField(IFixConst.Logout.Text, reason);
 			}
 			send( msg );
 			setSessionStatus( SessionStatus.LOGGED_OUT );
@@ -196,7 +196,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 					setSessionStatus( SessionStatus.ACTIVE ); // TODO: check field 112
 					break;
 				case TEST_REQUEST: 				
-					sessionMessagesSender.sendHeartbeat( msg.getField( IFixConst.TestReqID ) );
+					sessionMessagesSender.sendHeartbeat( msg.getField( IFixConst.Heartbeat.TestReqID ) );
 					break;
 				case RESEND_REQUEST:
 					setSessionStatus( SessionStatus.ACTIVE_RESEND );
@@ -218,7 +218,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 				}
 			} else {
 				sessionMessagesSender.sendReject( 
-					msg.getHederField( IFixConst.MsgSeqNum ), 
+					msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ), 
 					"Cannot process message" , 
 					msg.getMsgType().toString()
 				);
@@ -237,7 +237,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 			fixSessionListener.onMessage( msgType, msg );
 		} catch ( Exception ex ) {
 			try {
-				sessionMessagesSender.sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), msgType.toString() );
+				sessionMessagesSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ), ex.getMessage(), msgType.toString() );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

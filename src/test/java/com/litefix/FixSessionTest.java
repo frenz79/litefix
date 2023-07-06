@@ -177,8 +177,8 @@ public class FixSessionTest {
 		
 		((FixSession)session).getSessionMessageHanlder().processResendRequest( 
 			session.getMessageFactory().get().setMsgType("2")
-				.addField( IFixConst.BeginSeqNo, "0" )
-				.addField( IFixConst.EndSeqNo, "4" )
+				.addField( IFixConst.ResendRequest.BeginSeqNo, "0" )
+				.addField( IFixConst.ResendRequest.EndSeqNo, "4" )
 		);
 	}
 	
@@ -186,8 +186,8 @@ public class FixSessionTest {
 		FixMessage msg = null;
 		try {
 			msg = session.getMessageFactory().get().setMsgType("D")
-				.addField( IFixConst.TAG_98, "0" )
-				.addField( IFixConst.TAG_108, "");
+				.addField( IFixConst.Symbol, "EURUSD" )
+				.addField( IFixConst.Side, '1');
 			session.send(msg);
 		} finally {
 			session.getMessageFactory().release(msg);

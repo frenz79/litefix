@@ -36,7 +36,7 @@ public class FixSessionMessagesSender {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("1")
-				.addField(IFixConst.TestReqID, FixUUID.random() );
+				.addField(IFixConst.TestRequest.TestReqID, FixUUID.random() );
 			session.send( msg );
 			return true;
 		} finally {
@@ -48,12 +48,12 @@ public class FixSessionMessagesSender {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("3")
-				.addField( IFixConst.RefSeqNum, refSeqNum.valueAsString() )
-				.addField( IFixConst.TAG_372, refMsgType )
+				.addField( IFixConst.Reject.RefSeqNum, refSeqNum.valueAsString() )
+				.addField( IFixConst.Reject.RefMsgType, refMsgType )
 			;
 			
 			if ( text!=null && text.length()>0 ) {
-				msg.addField( IFixConst.TAG_58, text );
+				msg.addField( IFixConst.Reject.Text, text );
 			}			
 			session.send( msg ); 
 			return true;
@@ -66,8 +66,8 @@ public class FixSessionMessagesSender {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType(MsgType.TAG.GAP_FILL.getValue())
-				.addField( IFixConst.GapFillFlag, "Y" ) 
-				.addField( IFixConst.NewSeqNo, EndSeqNo ) 
+				.addField( IFixConst.SequenceReset.GapFillFlag, "Y" ) 
+				.addField( IFixConst.SequenceReset.NewSeqNo, EndSeqNo ) 
 			;
 			session.send( msg, BeginSeqNo );
 			return true;

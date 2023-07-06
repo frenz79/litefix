@@ -20,14 +20,14 @@ public class FixSessionMessagesHandler {
 	
 	boolean processResendRequest( FixMessage msg ) {
 		try {
-			FixField beginSeqNo = msg.getField( IFixConst.BeginSeqNo );
-			FixField endSeqNo = msg.getField( IFixConst.EndSeqNo );
+			FixField beginSeqNo = msg.getField( IFixConst.ResendRequest.BeginSeqNo );
+			FixField endSeqNo = msg.getField( IFixConst.ResendRequest.EndSeqNo );
 			int maxEndSeqIdx = this.persistence.getLastOutgoingSeq();			
 			int endIdx = (endSeqNo.is("0"))?maxEndSeqIdx:endSeqNo.valueAsInt();
 			
 			if ( endIdx>maxEndSeqIdx ) {
 				this.msgSender.sendReject( 
-					msg.getField( IFixConst.SeqNum ), 
+					msg.getField( IFixConst.StandardHeader.MsgSeqNum ), 
 					String.format("Invalid Resend Request: BeginSeqNo (%d) is greater than expected (%d).",beginSeqNo, endSeqNo),
 					msg.getMsgType().toString()
 				);
@@ -35,7 +35,7 @@ public class FixSessionMessagesHandler {
 			}
 			if ( endIdx>2147483647 ) {
 				this.msgSender.sendReject( 
-					msg.getField( IFixConst.SeqNum ), 
+					msg.getField( IFixConst.StandardHeader.MsgSeqNum ), 
 					"nvalid Resend Request: BeginSeqNo <= 0.",
 					msg.getMsgType().toString()
 				);
@@ -54,7 +54,7 @@ public class FixSessionMessagesHandler {
 		} catch ( Exception ex ) {
 			ex.printStackTrace();
 			try {
-				this.msgSender.sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), msg.getMsgType().toString() );
+				this.msgSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ), ex.getMessage(), msg.getMsgType().toString() );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -65,12 +65,12 @@ public class FixSessionMessagesHandler {
 	boolean processGapFillRequest( FixMessage msg ) {
 		try {
 			int lastIncomingSeq = this.persistence.getLastIncomingSeq();
-			int seqNum = msg.getField(IFixConst.SeqNum).valueAsInt();
-			int newSeqNo = msg.getField(IFixConst.NewSeqNo).valueAsInt();
+			int seqNum = msg.getField(IFixConst.StandardHeader.MsgSeqNum).valueAsInt();
+			int newSeqNo = msg.getField(IFixConst.ResendRequest.NewSeqNo).valueAsInt();
 			
 			if ( newSeqNo<this.persistence.getLastOutgoingSeq() ) {						
 				this.msgSender.sendReject( 
-					msg.getField( IFixConst.SeqNum ), 
+					msg.getField( IFixConst.StandardHeader.MsgSeqNum ), 
 					String.format("NewSeqNo too small expected %d, received %d", lastIncomingSeq+1, newSeqNo), 
 					"4"
 				);
@@ -91,7 +91,7 @@ public class FixSessionMessagesHandler {
 		} catch( Exception ex ) {
 			ex.printStackTrace( );
 			try {
-				this.msgSender.sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), "4" );
+				this.msgSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ), ex.getMessage(), "4" );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -102,13 +102,13 @@ public class FixSessionMessagesHandler {
 	boolean processLogonResp( FixMessage msg ) {
 		try {
 			int lastIncomingSeq = this.persistence.getLastIncomingSeq();
-			int seqNum = msg.getField(IFixConst.SeqNum).valueAsInt();	
+			int seqNum = msg.getField(IFixConst.StandardHeader.MsgSeqNum).valueAsInt();	
 			
 			if ( !this.session.ignoreSeqNumTooLowAtLogon ) {						
 				int delta = seqNum - lastIncomingSeq;
 				if ( delta>1 ) {					
 					this.msgSender.sendReject( 
-						msg.getField( IFixConst.SeqNum ), 
+						msg.getField( IFixConst.StandardHeader.MsgSeqNum ), 
 						String.format("Incoming seq too small in Logon(A) message, expected %d, received %d", lastIncomingSeq+1, seqNum), 
 						"A"
 					);
@@ -116,7 +116,7 @@ public class FixSessionMessagesHandler {
 				}
 			}
 			
-			FixField NextExpectedMsgSeqNum = msg.getField(IFixConst.NextExpectedMsgSeqNum);
+			FixField NextExpectedMsgSeqNum = msg.getField(IFixConst.Logon.NextExpectedMsgSeqNum);
 			if ( NextExpectedMsgSeqNum!=null ) {
 				if ( seqNum!=lastIncomingSeq+1 ) {
 					this.msgSender.sendGapFillRequest( seqNum, lastIncomingSeq+1 );
@@ -127,7 +127,7 @@ public class FixSessionMessagesHandler {
 		} catch( Exception ex ) {
 			ex.printStackTrace( );
 			try {
-				this.msgSender.sendReject( msg.getField( IFixConst.SeqNum ), ex.getMessage(), "A" );
+				this.msgSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ), ex.getMessage(), "A" );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

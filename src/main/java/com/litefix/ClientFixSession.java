@@ -86,9 +86,9 @@ public class ClientFixSession extends FixSession {
 		FixMessage msg = null;
 		try {
 			msg = messagePool.get().setMsgType("A")
-				.addField( IFixConst.EncryptMethod, "0" ) // EncryptMethod
-				.addField( IFixConst.HeartBtInt, hbIntervalSec )
-				.addField( IFixConst.ResetSeqNumFlag, (resetSeqOnLogon)?'Y':'N' )
+				.addField( IFixConst.Logon.EncryptMethod, "0" ) // EncryptMethod
+				.addField( IFixConst.Logon.HeartBtInt, hbIntervalSec )
+				.addField( IFixConst.Logon.ResetSeqNumFlag, (resetSeqOnLogon)?'Y':'N' )
 			;
 			if ( resetSeqOnLogon ) {
 				persistence.reset();

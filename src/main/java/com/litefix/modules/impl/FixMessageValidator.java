@@ -28,11 +28,11 @@ public class FixMessageValidator {
 	    	
 	    }
 	    
-	    if ( !msg.is( IFixConst.SenderCompID, targetCompIdBytes )){
+	    if ( !msg.is( IFixConst.StandardHeader.SenderCompID, targetCompIdBytes )){
 	    	System.out.println("Invalid TargetCompID");
 	    	return false;
 	    }
-	    if ( !msg.is( IFixConst.TargetCompID, senderCompIdBytes )){
+	    if ( !msg.is( IFixConst.StandardHeader.TargetCompID, senderCompIdBytes )){
 	    	System.out.println("Invalid SenderCompID");
 	    	return false;
 	    }

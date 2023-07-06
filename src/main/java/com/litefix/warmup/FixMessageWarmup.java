@@ -19,7 +19,7 @@ public class FixMessageWarmup {
 			msg.getHeaderLen();
 			msg.getHeaderStart();
 			msg.getStringValue( IFixConst.Symbol );
-			msg.getIntegerValue( IFixConst.SeqNum );
+			msg.getIntegerValue( IFixConst.StandardHeader.MsgSeqNum );
 			msg.reset();
 		}
 	}	

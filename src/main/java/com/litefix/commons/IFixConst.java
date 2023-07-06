@@ -75,7 +75,7 @@ public interface IFixConst {
 	}
 
 	public static class SequenceReset {
-		public static final FixTag MsgSeqNum = new FixTag(34); 
+		public static final FixTag NewSeqNo = new FixTag(36); 
 		public static final FixTag GapFillFlag = new FixTag(123);
 	}
 	
