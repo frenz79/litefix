@@ -8,10 +8,10 @@ import com.litefix.modules.IPersistence;
 public class FixSessionMessagesHandler {
 	
 	private final FixSession session;
-	private final IPersistence persistence;
+	private final IPersistence<FixMessage> persistence;
 	private final FixSessionMessagesSender msgSender;
 	
-	public FixSessionMessagesHandler(FixSession session, IPersistence persistence, FixSessionMessagesSender msgSender) {
+	public FixSessionMessagesHandler(FixSession session, IPersistence<FixMessage> persistence, FixSessionMessagesSender msgSender) {
 		super();
 		this.session = session;
 		this.persistence = persistence;

@@ -1,6 +1,7 @@
 package com.litefix;
 
 import com.litefix.commons.exceptions.InvalidSessionException;
+import com.litefix.models.FixMessage;
 import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
@@ -71,7 +72,7 @@ public class FixSessionBuilder {
 		return this;
 	}
 	
-	public FixSessionBuilder withPersistence( IPersistence persistence ) {
+	public FixSessionBuilder withPersistence( IPersistence<FixMessage> persistence ) {
 		this.session.persistence = persistence;
 		return this;
 	}

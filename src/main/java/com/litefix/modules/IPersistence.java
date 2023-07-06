@@ -2,22 +2,22 @@ package com.litefix.modules;
 
 import java.util.List;
 
-import com.litefix.models.FixMessage;
-
-public interface IPersistence {
+public interface IPersistence<T extends com.litefix.modules.Cloneable> {
 
 	int getAndIncrementOutgoingSeq();
 
-	void storeOutgoingMessage(int sequence, FixMessage message);
+	void storeOutgoingMessage(int sequence, T message);
 
-	List<FixMessage> getAllOutgoingMessagesInRange(int valueAsInt, int valueAsInt2);
+	List<T> getAllOutgoingMessagesInRange(int valueAsInt, int valueAsInt2);
 
-	FixMessage findOutgoingMessageBySeq(int i);
+	T findOutgoingMessageBySeq(int i);
 
 	int getLastOutgoingSeq();
 
 	void reset();
 
 	int getLastIncomingSeq();
-
+	int setLastIncomingSeq( int seq );
+	
+	void close();
 }

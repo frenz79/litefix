@@ -7,7 +7,7 @@ import com.litefix.commons.IFixConst;
 import com.litefix.commons.interfaces.IPoolable;
 import com.litefix.commons.utils.ArrayUtils;
 import com.litefix.commons.utils.MathUtils;
-
+import com.litefix.modules.Cloneable;
 
 /**
  * 
@@ -19,7 +19,7 @@ import com.litefix.commons.utils.MathUtils;
  *  header is appended right to left, body left to right
  *  
  */
-public class FixMessage implements IPoolable {
+public class FixMessage implements IPoolable, Cloneable{
 	
 	public static final int DEFAULT_BUFF_SIZE = 1024 * 16;
 	public static final int DEFAULT_BUFF_MID  = 128;
@@ -329,6 +329,7 @@ public class FixMessage implements IPoolable {
 		return this;
 	}
 	
+	@Override
 	public FixMessage clone() {		
 		int buffStart = headerStart; 
 		int buffEnd = buffStart + headerLen + bodyLen;

@@ -1,7 +1,5 @@
 package com.litefix;
 
-import java.util.concurrent.TimeUnit;
-
 import com.litefix.commons.IFixConst;
 import com.litefix.commons.exceptions.InvalidSessionException;
 import com.litefix.commons.exceptions.InvalidSessionException.CAUSE;
@@ -47,7 +45,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 	protected FixSessionMessagesSender sessionMessagesSender;
 	protected FixSessionMessagesHandler sessionMessageHanlder;
 
-	protected IPersistence persistence;
+	protected IPersistence<FixMessage> persistence;
 	protected IFixMessagePool messagePool;
 	protected ITransport transport;
 	protected IMessagesDispatcher messagesDispatcher;
@@ -131,7 +129,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 			return true;
 		}
 
-		long validationTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-rcvTime);
+		//long validationTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-rcvTime);
 		System.out.println("<< incoming: "+msg); 
 
 		this.stateMachine.setLastMessageReceivedNanos(rcvTime);
@@ -146,6 +144,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 
 			return true;
 		}
+		this.persistence.setLastIncomingSeq(msgSeqNum);
 
 		try  {
 			if ( !this.stateMachine.isLoggedOn() ) {
