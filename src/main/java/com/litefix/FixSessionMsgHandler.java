@@ -5,13 +5,13 @@ import com.litefix.models.FixField;
 import com.litefix.models.FixMessage;
 import com.litefix.modules.IPersistence;
 
-public class FixSessionMessagesHandler {
+public class FixSessionMsgHandler {
 	
 	private final FixSession session;
 	private final IPersistence<FixMessage> persistence;
-	private final FixSessionMessagesSender msgSender;
+	private final FixSessionMsgSender msgSender;
 	
-	public FixSessionMessagesHandler(FixSession session, IPersistence<FixMessage> persistence, FixSessionMessagesSender msgSender) {
+	public FixSessionMsgHandler(FixSession session, IPersistence<FixMessage> persistence, FixSessionMsgSender msgSender) {
 		super();
 		this.session = session;
 		this.persistence = persistence;

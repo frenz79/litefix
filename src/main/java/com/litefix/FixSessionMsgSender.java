@@ -12,12 +12,12 @@ import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
 import com.litefix.modules.IFixMessagePool;
 
-public class FixSessionMessagesSender {
+public class FixSessionMsgSender {
 
 	private final IFixMessagePool messagePool;
 	private final FixSession session;
 		
-	public FixSessionMessagesSender(FixSession session, IFixMessagePool messagePool) {
+	public FixSessionMsgSender(FixSession session, IFixMessagePool messagePool) {
 		super();
 		this.messagePool = messagePool;
 		this.session = session;

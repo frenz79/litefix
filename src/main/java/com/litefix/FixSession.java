@@ -14,7 +14,7 @@ import com.litefix.models.MsgType.TAG;
 import com.litefix.models.SessionStateMachine;
 import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IFixMessageValidator;
-import com.litefix.modules.IMessagesDispatcher;
+import com.litefix.modules.IFixMessageDispatcher;
 import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
 import com.litefix.modules.impl.DefaultFixMessagePool;
@@ -26,7 +26,7 @@ import com.litefix.warmup.FixMessageWarmup;
 import com.litefix.warmup.MathUtilsWarmup;
 import com.litefix.warmup.NumbersCacheWarmup;
 
-public abstract class FixSession implements IMessagesDispatcher {
+public abstract class FixSession implements IFixMessageDispatcher {
 
 	// Mandatory fields to be set
 	String beginString;
@@ -46,13 +46,13 @@ public abstract class FixSession implements IMessagesDispatcher {
 
 	private long testRequestTolerance = 1000L;
 
-	protected FixSessionMessagesSender sessionMessagesSender;
-	protected FixSessionMessagesHandler sessionMessageHanlder;
+	protected FixSessionMsgSender sessionMessagesSender;
+	protected FixSessionMsgHandler sessionMessageHanlder;
 
 	protected IPersistence<FixMessage> persistence;
 	protected IFixMessagePool messagePool;
 	protected ITransport transport;
-	protected IMessagesDispatcher messagesDispatcher;
+	protected IFixMessageDispatcher messagesDispatcher;
 	protected IFixMessageValidator messageValidator;
 
 	protected final SessionStateMachine stateMachine;
@@ -334,8 +334,8 @@ public abstract class FixSession implements IMessagesDispatcher {
 			this.persistence = new InMemoryPersistence<>(beginString,senderCompId,targetCompId);
 		}
 
-		this.sessionMessagesSender = new FixSessionMessagesSender( this, messagePool );
-		this.sessionMessageHanlder = new FixSessionMessagesHandler( this, persistence, this.sessionMessagesSender );
+		this.sessionMessagesSender = new FixSessionMsgSender( this, messagePool );
+		this.sessionMessageHanlder = new FixSessionMsgHandler( this, persistence, this.sessionMessagesSender );
 
 		return this;
 	}
@@ -360,7 +360,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 		return targetCompId;
 	}
 
-	public FixSessionMessagesHandler getSessionMessageHanlder() {
+	public FixSessionMsgHandler getSessionMessageHanlder() {
 		return sessionMessageHanlder;
 	}
 }

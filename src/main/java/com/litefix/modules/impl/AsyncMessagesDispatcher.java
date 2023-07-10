@@ -5,9 +5,9 @@ import java.util.concurrent.Executors;
 
 import com.litefix.FixSession;
 import com.litefix.models.FixMessage;
-import com.litefix.modules.IMessagesDispatcher;
+import com.litefix.modules.IFixMessageDispatcher;
 
-public class AsyncMessagesDispatcher implements IMessagesDispatcher {
+public class AsyncMessagesDispatcher implements IFixMessageDispatcher {
 
 	private Executor executor = Executors.newSingleThreadExecutor();
 	

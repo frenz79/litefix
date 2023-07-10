@@ -4,7 +4,7 @@ import com.litefix.commons.exceptions.InvalidSessionException;
 import com.litefix.models.FixMessage;
 import com.litefix.modules.IFixMessagePool;
 import com.litefix.modules.IFixMessageValidator;
-import com.litefix.modules.IMessagesDispatcher;
+import com.litefix.modules.IFixMessageDispatcher;
 import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
 
@@ -22,7 +22,7 @@ public class FixSessionBuilder {
 		return this.session;
 	}
 		
-	public FixSessionBuilder withMessagesDispatcher(IMessagesDispatcher messagesDispatcher) {
+	public FixSessionBuilder withMessagesDispatcher(IFixMessageDispatcher messagesDispatcher) {
 		this.session.messagesDispatcher = messagesDispatcher;
 		return this;
 	}
