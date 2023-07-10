@@ -31,6 +31,7 @@ public class ClientFixSession extends FixSession {
 		while( true ) {
 			try {
 				transport.connect( host, port );
+				this.stateMachine.connected(true);
 				break;
 			} catch ( Exception ex1 ) {
 				System.out.println("Connect failed:"+ ex1);

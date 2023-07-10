@@ -1,8 +1,11 @@
 package com.litefix;
 
 import com.litefix.commons.IFixConst;
+import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.InvalidSessionException;
 import com.litefix.commons.exceptions.InvalidSessionException.CAUSE;
+import com.litefix.commons.exceptions.SessionRejectMessageException;
+import com.litefix.commons.exceptions.SessionRejectMessageException.SESSION_REJECT_REASON;
 import com.litefix.commons.utils.StringUtils;
 import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.FixMessage;
@@ -10,6 +13,7 @@ import com.litefix.models.MsgType;
 import com.litefix.models.MsgType.TAG;
 import com.litefix.models.SessionStateMachine;
 import com.litefix.modules.IFixMessagePool;
+import com.litefix.modules.IFixMessageValidator;
 import com.litefix.modules.IMessagesDispatcher;
 import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
@@ -49,7 +53,7 @@ public abstract class FixSession implements IMessagesDispatcher {
 	protected IFixMessagePool messagePool;
 	protected ITransport transport;
 	protected IMessagesDispatcher messagesDispatcher;
-	protected FixMessageValidator messageValidator;
+	protected IFixMessageValidator messageValidator;
 
 	protected final SessionStateMachine stateMachine;
 
@@ -67,10 +71,6 @@ public abstract class FixSession implements IMessagesDispatcher {
 	void messagePoller() throws Exception {
 		FixMessage msg = this.messagePool.get();
 		byte[] beginMessageDelimiter = ("8="+beginString+"9=").getBytes();
-
-		messageValidator.setSenderCompId(senderCompId);
-		messageValidator.setTargetCompId(targetCompId);
-
 		while ( true ) {
 			msg.reset();
 			long now = System.nanoTime();
@@ -88,22 +88,25 @@ public abstract class FixSession implements IMessagesDispatcher {
 	void doCiclycTasks( long now ) throws Exception {
 		// Check for session timeouts
 		if ( this.stateMachine.isLoggedOn() ) {
-			if (( now - this.stateMachine.getLastMessageReceivedNanos())> (this.hbIntervalSec*1_000_000_000L+testRequestTolerance)) {
-				if ( ( now - this.stateMachine.getLastTestRequestSentNanos() )> (this.hbIntervalSec*1_000_000_000L+testRequestTolerance)) {
+			long hbIntervalSecWithTol = this.hbIntervalSec*1_000_000_000L+testRequestTolerance;
+					
+			if (( now - this.stateMachine.getLastMessageReceivedNanos())> hbIntervalSecWithTol) {
+				if ( ( now - this.stateMachine.getLastTestRequestSentNanos() )> hbIntervalSecWithTol) {
 					throw new Exception("Connection timedout");
 				} else {
 					this.stateMachine.setLastTestRequestSentNanos(now);
 					sessionMessagesSender.sendTestRequest();
 				}
 			}
-		}
-		// Send HB if necessary
-		if (now - this.stateMachine.getLastMessageSentNanos() > this.hbIntervalSec*1_000_000_000L ) {
-			sessionMessagesSender.sendHeartbeat( null );
+		
+			// Send HB if necessary
+			if (now - this.stateMachine.getLastMessageSentNanos() > this.hbIntervalSec*1_000_000_000L ) {
+				sessionMessagesSender.sendHeartbeat( null );
+			}
 		}
 	}
 
-	private void handleLoginProcess( TAG msgType, FixMessage msg ) {		
+	private void handleLoginProcess( TAG msgType, FixMessage msg ) throws SessionRejectMessageException, BusinessRejectMessageException {		
 		if ( this.stateMachine.isWaitingForLoginResp( )) {
 			switch(msgType) {
 			case LOGON:
@@ -117,25 +120,45 @@ public abstract class FixSession implements IMessagesDispatcher {
 				break;
 			default:
 				System.out.println("Discarded message received while not loggedin:"+msg);
-				break;
+				throw new SessionRejectMessageException(
+						msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(),
+						35,
+						msgType.getValue(),
+						SESSION_REJECT_REASON.INVALID_MSGTYPE_35,
+						String.format("Invalid messageType %s received", msgType.getValue())	
+				);
 			}
 		}
 	}
 
 	private boolean handleFixMessage( FixMessage msg, long rcvTime ) throws Exception {
-		// TODO:...
-		if ( !messageValidator.isValid(msg) ) {
-			System.out.println("Discarded!");
-			return true;
-		}
-
-		//long validationTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-rcvTime);
-		System.out.println("<< incoming: "+msg); 
-
 		this.stateMachine.setLastMessageReceivedNanos(rcvTime);
 		TAG msgType = msg.getMsgType().getTag();
 		int msgSeqNum = msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt();
 		int expMsgSeqNum = this.persistence.getLastIncomingSeq() + 1;
+		
+		try {
+			messageValidator.validate(msg);			
+		} catch (SessionRejectMessageException ex1) {
+			ex1.printStackTrace();
+			
+			sessionMessagesSender.sendSessionReject( ex1 );
+			
+			if ( !this.stateMachine.isLoggedOn() ) { 
+				doLogout("Session error");
+			}
+			
+		} catch (Exception ex3) {
+			ex3.printStackTrace();
+			sessionMessagesSender.sendSessionReject( 
+					msgSeqNum, 
+					ex3.getMessage(), 
+					msgType.toString()
+					);
+		}
+
+		//long validationTime = TimeUnit.NANOSECONDS.toMicros(System.nanoTime()-rcvTime);
+		System.out.println("<< incoming: "+msg); 
 
 		// Gap detection
 		if ( msgSeqNum != expMsgSeqNum ) {
@@ -172,22 +195,23 @@ public abstract class FixSession implements IMessagesDispatcher {
 					fixSessionListener.onLogout(msg);
 					break;
 				default:
-					try {
-						messagesDispatcher.dispatch( msg, this );						
-						return false;
-					} catch( Exception ex ) {
-						sessionMessagesSender.sendBusinessReject(
-								msgSeqNum,
-								ex.getMessage(),
-								msgType.toString()
-								);
-					}
+					messagesDispatcher.dispatch( msg, this );						
+					return false;
 				}
 			}
-		} catch (Exception ex) {
-			sessionMessagesSender.sendReject( 
+		} catch (SessionRejectMessageException ex1) {
+			sessionMessagesSender.sendSessionReject( ex1 );
+			
+			if ( !this.stateMachine.isLoggedOn() ) { 
+				doLogout("Session error");
+			}
+			
+		} catch( BusinessRejectMessageException ex2 ) {
+			sessionMessagesSender.sendBusinessReject( ex2 );
+		} catch (Exception ex3) {
+			sessionMessagesSender.sendSessionReject( 
 					msgSeqNum, 
-					ex.getMessage(), 
+					ex3.getMessage(), 
 					msgType.toString()
 					);
 		}
@@ -265,7 +289,8 @@ public abstract class FixSession implements IMessagesDispatcher {
 			fixSessionListener.onMessage( msgType, msg );
 		} catch ( Exception ex ) {
 			try {
-				sessionMessagesSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), msgType.toString() );
+				sessionMessagesSender.sendSessionReject( 
+					msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), msgType.toString() );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -303,10 +328,10 @@ public abstract class FixSession implements IMessagesDispatcher {
 			this.messagesDispatcher = this;
 		}
 		if ( this.messageValidator==null ) {
-			this.messageValidator = new FixMessageValidator(IFixConst.DEFAULT_MSG_VALIDATOR_FLAGS);
+			this.messageValidator = new FixMessageValidator(senderCompId, targetCompId, IFixConst.DEFAULT_MSG_VALIDATOR_FLAGS);
 		}
 		if ( this.persistence==null ) {
-			this.persistence = new InMemoryPersistence(beginString,senderCompId,beginString);
+			this.persistence = new InMemoryPersistence<>(beginString,senderCompId,targetCompId);
 		}
 
 		this.sessionMessagesSender = new FixSessionMessagesSender( this, messagePool );

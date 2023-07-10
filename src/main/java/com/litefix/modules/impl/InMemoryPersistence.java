@@ -29,6 +29,7 @@ public class InMemoryPersistence<T extends com.litefix.modules.Cloneable> implem
 
 	@Override
 	public void storeOutgoingMessage(int sequence, T message) {
+		if ( sequence>outgoingSeq ) outgoingSeq = sequence;
 		this.sentMessages.put(sequence, (T)message.clone());
 	}
 

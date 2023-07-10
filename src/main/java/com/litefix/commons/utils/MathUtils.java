@@ -2,10 +2,11 @@ package com.litefix.commons.utils;
 
 public class MathUtils {
 
-	public static final int calcChecksum( byte[] target, int start, int end ) {		
+	public static final int calcChecksum( byte[] target, int start, int end ) {	
 		int checksum = 0;
-
-		for ( int i=start; i<end; i++) {
+		// it's a bit faster decrementing
+		--end;
+		for ( int i=end; i>=start; --i) {
 			checksum += target[i];
 		}
 		checksum  &= 0xFF; // better than sum % 256 since it avoids overflow issues

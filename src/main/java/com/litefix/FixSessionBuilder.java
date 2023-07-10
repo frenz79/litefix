@@ -3,10 +3,10 @@ package com.litefix;
 import com.litefix.commons.exceptions.InvalidSessionException;
 import com.litefix.models.FixMessage;
 import com.litefix.modules.IFixMessagePool;
+import com.litefix.modules.IFixMessageValidator;
+import com.litefix.modules.IMessagesDispatcher;
 import com.litefix.modules.IPersistence;
 import com.litefix.modules.ITransport;
-import com.litefix.modules.impl.AsyncMessagesDispatcher;
-import com.litefix.modules.impl.FixMessageValidator;
 
 public class FixSessionBuilder {
 
@@ -22,12 +22,12 @@ public class FixSessionBuilder {
 		return this.session;
 	}
 		
-	public FixSessionBuilder withMessagesDispatcher(AsyncMessagesDispatcher messagesDispatcher) {
+	public FixSessionBuilder withMessagesDispatcher(IMessagesDispatcher messagesDispatcher) {
 		this.session.messagesDispatcher = messagesDispatcher;
 		return this;
 	}
 	
-	public FixSessionBuilder withMessagesValidator(FixMessageValidator messageValidator) {
+	public FixSessionBuilder withMessagesValidator(IFixMessageValidator messageValidator) {
 		this.session.messageValidator = messageValidator;
 		return this;
 	}

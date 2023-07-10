@@ -8,6 +8,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
 import com.litefix.commons.IFixConst;
+import com.litefix.commons.exceptions.BusinessRejectMessageException;
+import com.litefix.commons.exceptions.BusinessRejectMessageException.BUSINESS_REJECT_REASON;
 import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
 import com.litefix.modules.ITransport;
@@ -73,14 +75,20 @@ public class FixSessionTest {
 		public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
 
 		@Override
-		public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
+		public void onMessage(MsgType msgType, FixMessage msg) throws BusinessRejectMessageException {
 			switch( msgType.toString() ) {
 			case "S":
 			//	handleQuote( msg );
 			//	sendNewOrder( msgFactory );
 				break;
 			default:
-				throw new Exception("Unsupported message");
+				throw new BusinessRejectMessageException(
+						msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(),
+						"35",
+						msgType.toString(),
+						BUSINESS_REJECT_REASON.UNSUPPORTED_MESSAGE_TYPE,
+						"Unsupported message"
+					);
 			}				
 		}
 
@@ -108,14 +116,20 @@ public class FixSessionTest {
 			public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
 
 			@Override
-			public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
+			public void onMessage(MsgType msgType, FixMessage msg) throws BusinessRejectMessageException {
 				switch( msgType.toString() ) {
 				case "S":
 				//	handleQuote( msg );
 				//	sendNewOrder( msgFactory );
 					break;
 				default:
-					throw new Exception("Unsupported message");
+					throw new BusinessRejectMessageException(
+							msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(),
+							"35",
+							msgType.toString(),
+							BUSINESS_REJECT_REASON.UNSUPPORTED_MESSAGE_TYPE,
+							"Unsupported message"
+						);
 				}				
 			}
 
@@ -148,6 +162,7 @@ public class FixSessionTest {
 				.withTargetCompId("targetCompId")
 				.withTransport(new DummyTransport())
 				.withMessagesDispatcher(new AsyncMessagesDispatcher())
+			//	.withPersistence( new FSPersistence<FixMessage>(IFixConst.BEGIN_STRING_FIX44, "senderCompId", "targetCompId"))
 				.withHbIntervalSec(5)
 				.build();
 		// Force active status

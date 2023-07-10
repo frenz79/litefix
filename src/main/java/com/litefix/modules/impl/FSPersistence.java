@@ -80,6 +80,9 @@ public class FSPersistence<T extends com.litefix.modules.Cloneable> implements I
 		try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); 
 			 ObjectOutputStream oos = new ObjectOutputStream(bos)) {
 				outgoing.write(ByteUtils.intToBytes(sequence));
+				
+				oos.writeObject(message);
+				
 				outgoing.write(ByteUtils.intToBytes(bos.size()));
 				outgoing.write(bos.toByteArray());
 				outgoing.flush();

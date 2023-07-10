@@ -1,6 +1,8 @@
 package com.litefix.modules;
 
-public interface Cloneable {
+import java.io.Serializable;
+
+public interface Cloneable extends Serializable {
 
 	public Object clone();
 	

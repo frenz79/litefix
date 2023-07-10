@@ -26,7 +26,7 @@ public class FixSessionMessagesHandler {
 			int endIdx = (endSeqNo.is("0"))?maxEndSeqIdx:endSeqNo.valueAsInt();
 			
 			if ( endIdx>maxEndSeqIdx ) {
-				this.msgSender.sendReject( 
+				this.msgSender.sendSessionReject( 
 					msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), 
 					String.format("Invalid Resend Request: BeginSeqNo (%d) is greater than expected (%d).",beginSeqNo, endSeqNo),
 					msg.getMsgType().toString()
@@ -34,7 +34,7 @@ public class FixSessionMessagesHandler {
 				return false;
 			}
 			if ( endIdx>2147483647 ) {
-				this.msgSender.sendReject( 
+				this.msgSender.sendSessionReject( 
 					msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), 
 					"nvalid Resend Request: BeginSeqNo <= 0.",
 					msg.getMsgType().toString()
@@ -54,7 +54,7 @@ public class FixSessionMessagesHandler {
 		} catch ( Exception ex ) {
 			ex.printStackTrace();
 			try {
-				this.msgSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), msg.getMsgType().toString() );
+				this.msgSender.sendSessionReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), msg.getMsgType().toString() );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -69,7 +69,7 @@ public class FixSessionMessagesHandler {
 			int newSeqNo = msg.getField(IFixConst.ResendRequest.NewSeqNo).valueAsInt();
 			
 			if ( newSeqNo<this.persistence.getLastOutgoingSeq() ) {						
-				this.msgSender.sendReject( 
+				this.msgSender.sendSessionReject( 
 					msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), 
 					String.format("NewSeqNo too small expected %d, received %d", lastIncomingSeq+1, newSeqNo), 
 					"4"
@@ -91,7 +91,7 @@ public class FixSessionMessagesHandler {
 		} catch( Exception ex ) {
 			ex.printStackTrace( );
 			try {
-				this.msgSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), "4" );
+				this.msgSender.sendSessionReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), "4" );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -107,7 +107,7 @@ public class FixSessionMessagesHandler {
 			if ( !this.session.ignoreSeqNumTooLowAtLogon ) {						
 				int delta = seqNum - lastIncomingSeq;
 				if ( delta>1 ) {					
-					this.msgSender.sendReject( 
+					this.msgSender.sendSessionReject( 
 						msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), 
 						String.format("Incoming seq too small in Logon(A) message, expected %d, received %d", lastIncomingSeq+1, seqNum), 
 						"A"
@@ -127,7 +127,7 @@ public class FixSessionMessagesHandler {
 		} catch( Exception ex ) {
 			ex.printStackTrace( );
 			try {
-				this.msgSender.sendReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), "A" );
+				this.msgSender.sendSessionReject( msg.getField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(), ex.getMessage(), "A" );
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

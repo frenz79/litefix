@@ -12,4 +12,8 @@ public class TimeUtils {
 	public static String getSendingTime() {
 		return LocalDateTime.now(ZoneOffset.UTC).format( SENDING_TIME_FORMATTER );
 	}
+	
+	public static LocalDateTime fromSendingTime( String sendingTime ) {
+		return LocalDateTime.parse(sendingTime, SENDING_TIME_FORMATTER);
+	}
 }

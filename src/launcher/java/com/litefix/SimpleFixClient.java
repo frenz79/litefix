@@ -3,6 +3,8 @@ package com.litefix;
 import java.util.concurrent.TimeUnit;
 
 import com.litefix.commons.IFixConst;
+import com.litefix.commons.exceptions.BusinessRejectMessageException;
+import com.litefix.commons.exceptions.BusinessRejectMessageException.BUSINESS_REJECT_REASON;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.FixGroup;
@@ -29,7 +31,7 @@ static ClientFixSession session;
 			public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
 
 			@Override
-			public void onMessage(MsgType msgType, FixMessage msg) throws Exception {
+			public void onMessage(MsgType msgType, FixMessage msg) throws BusinessRejectMessageException {
 				switch( msgType.toString() ) {
 				case "S":
 					handleQuote( msg );
@@ -40,7 +42,13 @@ static ClientFixSession session;
 				case "3":
 					break;
 				default:
-					throw new Exception("Unsupported message");
+					throw new BusinessRejectMessageException(
+						msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(),
+						"35",
+						msgType.toString(),
+						BUSINESS_REJECT_REASON.UNSUPPORTED_MESSAGE_TYPE,
+						"Unsupported message"
+					);
 				}				
 			}
 
