@@ -19,7 +19,7 @@ import com.litefix.modules.transport.IClientTransport;
 public class SimpleFixClient implements IFixMessageListener, IFixSessionListener {
 
 	private ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig();
-	private IClientTransport transport = new ClientSocketTransport();
+	private IClientTransport transport;
 	private ClientFixSession session;
 	
 	public SimpleFixClient() {
@@ -30,6 +30,8 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 		sessionCfg.setServerHost("localhost");
 		sessionCfg.setServerPort( 5179);
 		sessionCfg.dictionary = DefaultFix44Dictionary.init();
+		
+		transport = new ClientSocketTransport(sessionCfg.getDictionary().getBeginString());
 	}
 	
 	public void start() throws Exception {
@@ -79,6 +81,7 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 	public void onLogon(FixMessageDecoder decoder, boolean result) throws SessionRejectMessageException, BusinessRejectMessageException {
 		if ( result ) {
 			for (int i=0; i<10000; i++ ) {
+				long startTime = System.nanoTime();
 				FixMessageEncoder enc = session.newEncoder( "D" )
 					.set(55, "IT0000000000")	// Symbol
 					.set(11, FixUUID.random() ) // ClOrdID
@@ -90,6 +93,8 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 					.set(60, TimeUtils.getSendingTime() )// TransactTime
 				;
 				session.sendMessage( enc );
+				long now = System.nanoTime();
+				System.out.println("["+TimeUnit.NANOSECONDS.toMicros(now-startTime)+"]micros -> send done");
 			}
 		}
 	}

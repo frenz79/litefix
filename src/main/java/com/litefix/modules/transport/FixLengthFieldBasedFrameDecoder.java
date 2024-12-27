@@ -8,18 +8,23 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 
 //Based on LengthFieldBasedFrameDecoder
 public class FixLengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
-
+	
+	private static final char FIELD_SEPARATOR = '';
+	private static final int CRC_BODY_FIELD_SIZE = 8;
+	private static final byte BYTE_0 = (byte)'0';
+	private static final int POW10_0 = (int)Math.pow(10,0);
+	private static final int POW10_1 = (int)Math.pow(10,1);
+	private static final int POW10_2 = (int)Math.pow(10,2);
+	private static final int POW10_3 = (int)Math.pow(10,3);
+	private static final int POW10_4 = (int)Math.pow(10,4);
+	
+	private final int lengthFieldOffset;
+	
 	private int frameLengthInt = -1;
 
-	public static final int CRC_BODY_FIELD_SIZE = 8;
-	private static final int offset = "8=FIX.4.49=".getBytes().length;
-	private static final byte BYTE_0 = (byte)'0';
-
-	public static final int POW10_0 = (int)Math.pow(10,0);
-	public static final int POW10_1 = (int)Math.pow(10,1);
-	public static final int POW10_2 = (int)Math.pow(10,2);
-	public static final int POW10_3 = (int)Math.pow(10,3);
-	public static final int POW10_4 = (int)Math.pow(10,4);
+	public FixLengthFieldBasedFrameDecoder( String beginString ){
+		this.lengthFieldOffset = ("8="+beginString+FIELD_SEPARATOR+"9=").getBytes().length;
+	}
 
 	private static final int pow10( int exp ) {
 		switch(exp) {
@@ -37,7 +42,7 @@ public class FixLengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 		byte b[] = new byte[8];
 		int i=0;
 		int readerOffset = in.readerIndex(); 
-		while ( (b[i] = in.getByte(readerOffset+offset+i))!='' ) {
+		while ( (b[i] = in.getByte(readerOffset+lengthFieldOffset+i))!=FIELD_SEPARATOR) {
 			i++;
 		};
 		for (int j=i-1; j>=0; j--) {
@@ -50,10 +55,10 @@ public class FixLengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 		int frameLength = 0;
 		if (frameLengthInt == -1) { // new frame
 
-			if (in.readableBytes() < in.readerIndex()+offset) {
+			if (in.readableBytes() < in.readerIndex()+lengthFieldOffset) {
 				return null;
 			}
-			frameLength = getBodyLen(in) + offset;
+			frameLength = getBodyLen(in) + lengthFieldOffset;
 			// never overflows because it's less than maxFrameLength
 			frameLengthInt = frameLength;
 		}

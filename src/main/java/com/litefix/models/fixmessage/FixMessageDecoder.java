@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 
 import com.litefix.caches.NumbersCache;
-import com.litefix.commons.utils.ArrayUtils;
 import com.litefix.commons.utils.ByteUtils;
 
 public class FixMessageDecoder extends AbstractEncoderDecoder {
@@ -80,7 +79,7 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	public int asInt( int fieldId ) {
-		return Integer.valueOf(getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		return getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep());
 	}
 
 	public long asLong( int fieldId ) {

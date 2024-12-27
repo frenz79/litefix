@@ -21,10 +21,12 @@ import io.netty.handler.codec.bytes.ByteArrayEncoder;
 public class ClientSocketTransport implements IClientTransport {
 
 	private final EventLoopGroup workerGroup;
+	private final String fixBeginString;
 	private Channel channel;
 
-	public ClientSocketTransport() {
+	public ClientSocketTransport( String fixBeginString ) {
 		this.workerGroup = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory()/*EpollIoHandler.newFactory()*/);
+		this.fixBeginString = fixBeginString;
 	}
 
 	/*
@@ -63,7 +65,7 @@ public class ClientSocketTransport implements IClientTransport {
 					//		pipeline.addLast("ssl", new SslHandler(engine));
 
 					//    	pipeline.addLast(new LengthFieldBasedFrameDecoder(8192, 0, 0));
-					pipeline.addLast(new FixLengthFieldBasedFrameDecoder());
+					pipeline.addLast(new FixLengthFieldBasedFrameDecoder(fixBeginString));
 					pipeline.addLast(new ByteArrayDecoder());
 					pipeline.addLast(new ByteArrayEncoder());
 

@@ -18,8 +18,6 @@ import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.modules.transport.ITransport;
 
 public abstract class AbstractFixSession {
-
-	private static final byte[] MSG_TYPE_SIGNATURE_BYTES = "35=".getBytes();
 	
 	public static final DateTimeFormatter UTC_TIMESTAMP_SEC = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss");
 	public static final DateTimeFormatter UTC_TIMESTAMP_MILLIS = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
