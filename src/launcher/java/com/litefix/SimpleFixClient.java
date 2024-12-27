@@ -2,119 +2,103 @@ package com.litefix;
 
 import java.util.concurrent.TimeUnit;
 
-import com.litefix.commons.IFixConst;
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
-import com.litefix.commons.exceptions.BusinessRejectMessageException.BUSINESS_REJECT_REASON;
+import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.TimeUtils;
-import com.litefix.models.FixGroup;
-import com.litefix.models.FixMessage;
-import com.litefix.models.FixTag;
-import com.litefix.models.MsgType;
+import com.litefix.models.dictionary.DefaultFix44Dictionary;
+import com.litefix.models.fixmessage.FixMessageDecoder;
+import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.models.session.ClientFixSession;
+import com.litefix.models.session.ClientFixSessionConfig;
+import com.litefix.models.session.IFixMessageListener;
+import com.litefix.models.session.IFixSessionListener;
+import com.litefix.modules.transport.ClientSocketTransport;
+import com.litefix.modules.transport.IClientTransport;
 
-public class SimpleFixClient {
+public class SimpleFixClient implements IFixMessageListener, IFixSessionListener {
 
-static ClientFixSession session;
+	private ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig();
+	private IClientTransport transport = new ClientSocketTransport();
+	private ClientFixSession session;
 	
-	public static void main( String[] args ) throws Exception {
-		String serverHost = "localhost";
-		int serverPort = 5179;
-		String senderCompId ="TESTSEND1";
-		String targetCompId ="TESTTARGET1";
-				
-		IFixSessionListener listener = new IFixSessionListener() {
-
-			@Override
-			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
-			
-			@Override
-			public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
-
-			@Override
-			public void onMessage(MsgType msgType, FixMessage msg) throws BusinessRejectMessageException {
-				switch( msgType.toString() ) {
-				case "S":
-					handleQuote( msg );
-				//	sendNewOrder( msgFactory );
-					break;
-				case "D":
-					break;
-				case "3":
-					break;
-				default:
-					throw new BusinessRejectMessageException(
-						msg.getHederField( IFixConst.StandardHeader.MsgSeqNum ).valueAsInt(),
-						"35",
-						msgType.toString(),
-						BUSINESS_REJECT_REASON.UNSUPPORTED_MESSAGE_TYPE,
-						"Unsupported message"
-					);
-				}				
-			}
-
-			@Override
-			public void onLogin(FixMessage msg, boolean result) {
-				int batchSize = 10;
-				//warmup
-				/*
-				for ( int i=0; i<batchSize; i++ ) {
-					try { 
-						sendNewOrder();
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				*/
-				long startTime = System.nanoTime();
-				for ( int i=0; i<batchSize; i++ ) {
-					try { 
-						sendNewOrder();
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				long endTime = System.nanoTime();
-				
-				System.out.println("Average NewOrder send time="+(TimeUnit.NANOSECONDS.toMicros(endTime-startTime)/batchSize));
-			}			
-		};
-
-		session =(ClientFixSession)new FixSessionBuilder(serverHost, serverPort, listener )
-				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
-				.withSenderCompId(senderCompId)
-				.withTargetCompId(targetCompId)
-				.withHbIntervalSec(30)
-		//		.withResetSeqOnDisconnect(false)
-		//		.withResetSeqOnLogon(false)
-				.withLogonTimeoutSec(5)
-				.withAutomaticLogonOnConnect(true)
-				.withAutomaticLogonOnLogout(true)
-				.withAutomaticReconnect(true, 500L)
-				.build();
-				
-		session.doConnectAndRetry( 1000L );
+	public SimpleFixClient() {
+		sessionCfg.setSenderCompId( "TESTSEND1" );
+		sessionCfg.setTargetCompId( "TESTTARGET1" );
+		sessionCfg.setHeartBtInt( 0 );
+		sessionCfg.setResetSeqNumFlag('Y');
+		sessionCfg.setServerHost("localhost");
+		sessionCfg.setServerPort( 5179);
+		sessionCfg.dictionary = DefaultFix44Dictionary.init();
 	}
 	
-	public static void sendNewOrder( ) throws Exception {
-		FixMessage msg = null;
-		try {
-			msg = session.getMessagePool().get().setMsgType("D")
-				.addField( IFixConst.Symbol, "IT0000000000" )
-				.addField( IFixConst.ClOrdID, FixUUID.random() )
-				.addField( IFixConst.Currency, "EUR" )
-				.addField( IFixConst.HandlInst, '1' )
-				.addField( IFixConst.OrderQty, "1000" )
-				.addField( IFixConst.OrdType, '1' )
-				.addField( IFixConst.Side, '1' )
-				.addField( IFixConst.TransactTime, TimeUtils.getSendingTime() );		
-				
-			session.send(msg);
-		} finally {
-			session.getMessagePool().release(msg);
-		}		
-	}		
+	public void start() throws Exception {
+		session = new ClientFixSession( transport, sessionCfg );
+		session.addAllMessagesListener( this );
+		session.addSessionListener( this );
+		session.doConnect();
+	}	
+	
+	public static void main( String[] args ) throws Exception {
+		new SimpleFixClient().start();
+	}
+	
+	// IFixMessageListener
+	@Override
+	public void onMessage(FixMessageDecoder decoder) throws BusinessRejectMessageException {
+		switch (decoder.getMsgType()) {
+		case "S" : handleQuote(decoder); break;
+		
+		default:
+			long now = System.nanoTime();
+			System.out.println("["+TimeUnit.NANOSECONDS.toMicros(now-decoder.getRcvNanoTime())+"]micros -> onMessage:"+new String(decoder.getMsgBuff()));
+			break;
+		}
+	}
+
+	@Override
+	public void onLogout(FixMessageDecoder decoder) {
+		session.doLogon();
+	}
+	
+	@Override
+	public void onConnect(boolean upOrDown) {
+		if ( upOrDown ) {
+			session.doLogon();
+		} else {
+			try {
+				session.doConnect();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+
+	@Override
+	public void onLogon(FixMessageDecoder decoder, boolean result) throws SessionRejectMessageException, BusinessRejectMessageException {
+		if ( result ) {
+			for (int i=0; i<10000; i++ ) {
+				FixMessageEncoder enc = session.newEncoder( "D" )
+					.set(55, "IT0000000000")	// Symbol
+					.set(11, FixUUID.random() ) // ClOrdID
+				//	.set(15, "EUR" ) // Currency
+					.set(21, '1' )// HandlInst
+					.set(38, 1000 )// OrderQty
+					.set(40, '1' )// OrdType - market
+					.set(54, '1' )// Side
+					.set(60, TimeUtils.getSendingTime() )// TransactTime
+				;
+				session.sendMessage( enc );
+			}
+		}
+	}
+	
+	public void handleQuote( FixMessageDecoder decoder ) {
+		
+		
+	}
+	/*
 	
 	public static void handleQuote( FixMessage msg ) {
 		String symbol = msg.getStringValue( IFixConst.Symbol );
@@ -148,4 +132,5 @@ static ClientFixSession session;
 			System.out.println(LegBidPx + " :  " + XCDLegBidQty + " | "+  XCDLegOfferQty + " : " + LegOfferPx);
 		}
 	}
+	*/
 }

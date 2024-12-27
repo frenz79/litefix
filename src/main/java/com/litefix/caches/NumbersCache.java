@@ -7,6 +7,7 @@ public class NumbersCache {
 
 	public static final int CACHE_SIZE = 50000;
 	
+	private static byte[][] int2bytes = new byte[CACHE_SIZE][];
 	private static String[] int2str = new String[CACHE_SIZE];
 	private static String[] int2PaddedStr = new String[CACHE_SIZE];
 	private static Map<String,Integer>  str2int = new HashMap<>( CACHE_SIZE * 2);
@@ -19,7 +20,13 @@ public class NumbersCache {
 			int2PaddedStr[i] = (i<10)?"00"+str:(i<100)?"0"+str:str;
 
 			str2int.put(int2str[i], i);
+			
+			int2bytes[i] = String.valueOf( i ).getBytes();
 		}
+	}
+	
+	public static byte[] toBytes( int v ) {
+		return (v<CACHE_SIZE)?int2bytes[v]:String.valueOf(v).getBytes();
 	}
 	
 	public static String toString( int v ) {

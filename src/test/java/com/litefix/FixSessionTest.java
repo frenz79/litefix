@@ -12,13 +12,15 @@ import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.BusinessRejectMessageException.BUSINESS_REJECT_REASON;
 import com.litefix.models.FixMessage;
 import com.litefix.models.MsgType;
-import com.litefix.modules.ITransport;
+import com.litefix.models.session.ClientFixSession;
+import com.litefix.models.session.IFixSessionListener;
 import com.litefix.modules.impl.AsyncMessagesDispatcher;
+import com.litefix.modules.transport.IClientTransport;
 
 @TestInstance(Lifecycle.PER_CLASS)
 public class FixSessionTest {
 
-	public static class DummyTransport implements ITransport {
+	public static class DummyTransport implements IClientTransport {
 
 		@Override
 		public void stop() throws IOException {
@@ -27,7 +29,7 @@ public class FixSessionTest {
 		}
 
 		@Override
-		public ITransport send(FixMessage msg) throws IOException {
+		public IClientTransport send(FixMessage msg) throws IOException {
 			System.out.println("-->"+msg.toString());
 			return this;
 		}
@@ -35,7 +37,7 @@ public class FixSessionTest {
 		boolean connectRcv = false;
 		long firstMessageTime = 0L;
 		@Override
-		public ITransport connect(String host, int port) throws Exception {
+		public IClientTransport connect(String host, int port) throws Exception {
 			connectRcv  = true;
 			firstMessageTime = System.currentTimeMillis() + 1000L;
 			return null;
@@ -69,7 +71,7 @@ public class FixSessionTest {
 	
 	public static class DummyFixSessionListener implements IFixSessionListener {
 		@Override
-		public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
+		public void onConnect(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
 
 		@Override
 		public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }
@@ -110,7 +112,7 @@ public class FixSessionTest {
 		IFixSessionListener listener = new IFixSessionListener() {
 
 			@Override
-			public void onConnection(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
+			public void onConnect(boolean b) { System.out.println((b)?"Connected!":"Connection ERROR!");	}
 
 			@Override
 			public void onLogout(FixMessage msg) { System.out.println("Logged OUT"); }

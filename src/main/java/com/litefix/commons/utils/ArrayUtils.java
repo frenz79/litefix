@@ -47,7 +47,7 @@ public class ArrayUtils {
 	}
 	
 	public static final int findByte(byte[] largeArray, byte toSearch, int startOffset, int endOffset ) {
-		for (int i = startOffset; i <= endOffset; i+=2) {
+		for (int i = startOffset; i < endOffset-1; i+=2) {
 			if (largeArray[i]==toSearch ) {
 				return i;
 			}

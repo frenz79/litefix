@@ -8,8 +8,8 @@
 	<name>Lite FIX</name>
 
 	<properties>
-	    <maven.compiler.source>17</maven.compiler.source>
-	    <maven.compiler.target>17</maven.compiler.target>
+	    <maven.compiler.source>20</maven.compiler.source>
+	    <maven.compiler.target>20</maven.compiler.target>
 	</properties>
 	
 	<dependencies>
@@ -25,10 +25,31 @@
 			<version>1.2.0</version>
 			<scope>test</scope>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/io.netty/netty-all -->
+		<dependency>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty-all</artifactId>
+		    <version>4.2.0.RC1</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/io.netty/netty-handler -->
+		<dependency>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty-handler</artifactId>
+		    <version>4.2.0.RC1</version>
+		</dependency>
+
+        
 	</dependencies>
 
 
 	<build>
+		 <extensions>
+	      <extension>
+	        <groupId>kr.motd.maven</groupId>
+	        <artifactId>os-maven-plugin</artifactId>
+	        <version>1.6.1</version>
+	      </extension>
+    	</extensions>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
