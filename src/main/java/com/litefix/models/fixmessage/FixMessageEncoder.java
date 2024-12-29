@@ -11,6 +11,7 @@ import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageTemplate;
 public class FixMessageEncoder extends AbstractEncoderDecoder {
 
 	private final FixMessageTemplate dictionaryMsgTemplate;
+	private int seqNum;
 	
 	private StringBuilder messageBodyStr = new StringBuilder();
 	private Map<String,FixMessageField> msgFields = new HashMap<>();
@@ -57,6 +58,9 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	}
 	
 	public FixMessageEncoder set( int id, int val ) {
+		if (id==34) {
+			setSeqNum(val);
+		}
 		return set( NumbersCache.toString(id), Integer.valueOf(val));
 	}
 	
@@ -143,4 +147,13 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 			setValue(val);
 		}
 	}
+
+	public int getSeqNum() {
+		return seqNum;
+	}
+
+	public void setSeqNum(int seqNum) {
+		this.seqNum = seqNum;
+	}
+	
 }

@@ -4,8 +4,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
-import com.litefix.commons.utils.FixUUID;
-import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
@@ -13,6 +11,8 @@ import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.IFixMessageListener;
 import com.litefix.models.session.IFixSessionListener;
+import com.litefix.modules.persistence.IPersistence;
+import com.litefix.modules.persistence.InMemoryPersistence;
 import com.litefix.modules.transport.ClientSocketTransport;
 import com.litefix.modules.transport.IClientTransport;
 
@@ -20,22 +20,25 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 
 	private ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig();
 	private IClientTransport transport;
+	private IPersistence<FixMessageEncoder> persistence;
 	private ClientFixSession session;
 	
 	public SimpleFixClient() {
 		sessionCfg.setSenderCompId( "TESTSEND1" );
 		sessionCfg.setTargetCompId( "TESTTARGET1" );
-		sessionCfg.setHeartBtInt( 0 );
+		sessionCfg.setHeartBtInt( 1 );
 		sessionCfg.setResetSeqNumFlag('Y');
 		sessionCfg.setServerHost("localhost");
 		sessionCfg.setServerPort( 5179);
 		sessionCfg.dictionary = DefaultFix44Dictionary.init();
 		
 		transport = new ClientSocketTransport(sessionCfg.getDictionary().getBeginString());
+		
+		persistence = new InMemoryPersistence<FixMessageEncoder>();
 	}
 	
 	public void start() throws Exception {
-		session = new ClientFixSession( transport, sessionCfg );
+		session = new ClientFixSession( transport, persistence, sessionCfg );
 		session.addAllMessagesListener( this );
 		session.addSessionListener( this );
 		session.doConnect();
@@ -60,11 +63,13 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 
 	@Override
 	public void onLogout(FixMessageDecoder decoder) {
+		System.out.println("logged out");
 		session.doLogon();
 	}
 	
 	@Override
 	public void onConnect(boolean upOrDown) {
+		System.out.println("connected:"+upOrDown);
 		if ( upOrDown ) {
 			session.doLogon();
 		} else {
@@ -79,7 +84,13 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 
 	@Override
 	public void onLogon(FixMessageDecoder decoder, boolean result) throws SessionRejectMessageException, BusinessRejectMessageException {
-		if ( result ) {
+		if (result) {
+			System.out.println("logged in");
+		} else {
+			System.out.println("logged out");
+		}
+		
+		/*if ( result ) {
 			for (int i=0; i<10000; i++ ) {
 				long startTime = System.nanoTime();
 				FixMessageEncoder enc = session.newEncoder( "D" )
@@ -97,6 +108,7 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 				System.out.println("["+TimeUnit.NANOSECONDS.toMicros(now-startTime)+"]micros -> send done");
 			}
 		}
+		*/
 	}
 	
 	public void handleQuote( FixMessageDecoder decoder ) {

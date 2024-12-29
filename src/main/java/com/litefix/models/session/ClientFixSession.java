@@ -5,13 +5,14 @@ import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException.SESSION_REJECT_REASON;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.transport.IClientTransport;
 import com.litefix.modules.transport.IClientTransportListener;
 
 public class ClientFixSession extends AbstractFixSession implements IClientTransportListener {
 	
-	public ClientFixSession(IClientTransport transport, ClientFixSessionConfig sessionConfig ) {
-		super(transport, sessionConfig);
+	public ClientFixSession(IClientTransport transport, IPersistence<FixMessageEncoder> persistence, ClientFixSessionConfig sessionConfig ) {
+		super(transport, persistence, sessionConfig);
 	}
 
 	public AbstractFixSession doConnect( ) throws Exception {
@@ -23,7 +24,7 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 		if ( encoder==null ) {
 			encoder = newEncoder("A");
 		}
-		buildLogonMessage( encoder );
+		getFixMessageMapper().buildLogonMessage( encoder, sessionConfig );
 		sendMessage( encoder );
 		return this;
 	}
@@ -61,34 +62,46 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 			validate( sessionConfig, decoder, decoder.getMsgType() );
 			
 			// Trace incoming message
-			int expectedIncomingSeqNum = traceIncomingMessage( decoder );
+			int expectedIncomingSeqNum = getNextIncomingMessage( );
+			int delta = decoder.getSeqNum() - expectedIncomingSeqNum;
 			
 			if ( !sessionSM.isLoggedOn() ) {
-				switch(decoder.getMsgType()) {
-				case "A": handleLogonResp(decoder); break;
-				case "5": handleLogout(decoder); break;
-				default:
+				if ( delta!=0 ) {
+					System.out.println("Login failed. Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum() );
 					throw new SessionRejectMessageException(
 							decoder.getSeqNum(),
 							35,
 							decoder.getMsgType(),
 							SESSION_REJECT_REASON.INVALID_MSGTYPE_35,
-							String.format("Only msgType 'A' or '5' supported when not logged in.Discarded msgType:%s",decoder.getMsgType()));
+							String.format("Invalid sequence number received in msgType:%s",decoder.getMsgType()));
+				} else {
+					incLastIncomingMessage();
+					switch(decoder.getMsgType()) {
+					case "A": handleLogonResp(decoder); break;
+					case "5": handleLogout(decoder); break;
+					default:
+						throw new SessionRejectMessageException(
+								decoder.getSeqNum(),
+								35,
+								decoder.getMsgType(),
+								SESSION_REJECT_REASON.INVALID_MSGTYPE_35,
+								String.format("Only msgType 'A' or '5' supported when not logged in.Discarded msgType:%s",decoder.getMsgType()));
+					}
 				}
-			} else {
-				int delta = decoder.getSeqNum() - expectedIncomingSeqNum;
-				
-				if ( delta>0 ) {
+			} else {				
+				if ( delta<0 ) {
 					// ..older message ?
 					System.out.println("Discarded old message. Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum() );
 				} else if ( delta>0 ) {
+					System.out.println("Gap detected. Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum() );
 					// ..gap detected
-					sendMessage( buildGapFillMessage(
+					sendMessage( getFixMessageMapper().buildGapFillMessage(
 							newEncoder( "2" ),
 							expectedIncomingSeqNum,
 							decoder.getSeqNum()
 					));					
 				} else {
+					incLastIncomingMessage();
 					switch(decoder.getMsgType()) {
 					case "0": handleHeartbeat(decoder); break;
 					case "1": handleTestRequest(decoder); break;
@@ -113,7 +126,7 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 		} catch( BusinessRejectMessageException ex1 ) {
 			ex1.printStackTrace();
 			
-			sendMessage( buildBusinessRejectMessage(
+			sendMessage( getFixMessageMapper().buildBusinessRejectMessage(
 					newEncoder( "j" ),
 					ex1));
 			
@@ -121,7 +134,7 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 			// TODO: Do logout
 			ex2.printStackTrace();
 			
-			sendMessage( buildRejectMessage(
+			sendMessage( getFixMessageMapper().buildRejectMessage(
 					newEncoder( "3" ),
 					ex2));
 		} catch (Exception e) {
@@ -152,7 +165,7 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 	}
 	// 35=1
 	private void handleTestRequest(FixMessageDecoder decoder) {
-		FixMessageEncoder enc = buildHeartbeatMessage( newEncoder( "0" ) )
+		FixMessageEncoder enc = getFixMessageMapper().buildHeartbeatMessage( newEncoder( "0" ) )
 			.set( 112, decoder.asString(112) ); // TestReqID
 		sendMessage( enc );
 	}

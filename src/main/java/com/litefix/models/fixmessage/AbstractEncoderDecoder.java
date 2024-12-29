@@ -1,9 +1,10 @@
 package com.litefix.models.fixmessage;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public abstract class AbstractEncoderDecoder {
+public abstract class AbstractEncoderDecoder implements Serializable {
 
 	public static final DateTimeFormatter UTC_TIMESTAMP_SEC = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss");
 	public static final DateTimeFormatter UTC_TIMESTAMP_MILLIS = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");

@@ -1,13 +1,14 @@
 package com.litefix.modules.persistence;
 
+import java.io.Serializable;
 import java.util.List;
 
-import com.litefix.modules.Cloneable;
-
-public interface IPersistence<T extends com.litefix.modules.Cloneable> {
+public interface IPersistence<T extends Serializable> {
 
 	int getAndIncrementOutgoingSeq();
 
+	void purgeOutgoingMessage(int sequence);
+	
 	void storeOutgoingMessage(int sequence, T message);
 
 	List<T> getAllOutgoingMessagesInRange(int valueAsInt, int valueAsInt2);
@@ -19,7 +20,10 @@ public interface IPersistence<T extends com.litefix.modules.Cloneable> {
 	void reset();
 
 	int getLastIncomingSeq();
-	int setLastIncomingSeq( int seq );
+	
+	void setLastIncomingSeq( int seq );
+	
+	int incLastIncomingSeq();
 	
 	void close();
 }

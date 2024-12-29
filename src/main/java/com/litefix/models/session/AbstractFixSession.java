@@ -6,15 +6,14 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException.SESSION_REJECT_REASON;
 import com.litefix.commons.utils.ByteUtils;
 import com.litefix.commons.utils.MathUtils;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.transport.ITransport;
 
 public abstract class AbstractFixSession {
@@ -23,8 +22,7 @@ public abstract class AbstractFixSession {
 	public static final DateTimeFormatter UTC_TIMESTAMP_MILLIS = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
 
 	final SessionStateMachine sessionSM;
-	final AtomicInteger incomingSeqNum = new AtomicInteger(1);
-	final AtomicInteger outgoingSeqNum = new AtomicInteger(0);
+
 	final ClientFixSessionConfig sessionConfig;
 	
 	public static long SENDING_TIME_ACCURACY_THREASHOLD_MILLIS = 1000L;
@@ -34,12 +32,16 @@ public abstract class AbstractFixSession {
 	private Map<String,IFixMessageListener> msgListeners = new HashMap<>();
 	private IFixSessionListener sessionListener;
 
+	private final IPersistence<FixMessageEncoder> persistence;
 	private final ITransport transport;
+	private final FixMessageMapper fixMessageMapper;
 	
-	public AbstractFixSession(ITransport transport, ClientFixSessionConfig sessionConfig) {
+	public AbstractFixSession(ITransport transport, IPersistence<FixMessageEncoder> persistence, ClientFixSessionConfig sessionConfig) {
 		this.sessionConfig = sessionConfig;
 		this.transport = transport;
+		this.persistence = persistence;
 		this.sessionSM = new SessionStateMachine();
+		this.fixMessageMapper = new FixMessageMapper();
 	}
 	
 	public IFixMessageListener getMessageListener( String msgType ) {
@@ -74,63 +76,7 @@ public abstract class AbstractFixSession {
 		return FixMessageDecoder.newDecoder( sessionConfig.dictionary, buffer, from, len, rcvNanoTime );
 	}
 	
-	public FixMessageEncoder buildLogonMessage( FixMessageEncoder encoder ) {
-		return encoder
-			.set(108, sessionConfig.getHeartBtInt() )
-			.set(141, sessionConfig.getResetSeqNumFlag() )
-			.set( 98, sessionConfig.getEncryptMethod() );
-	}
 	
-	public FixMessageEncoder buildHeartbeatMessage( FixMessageEncoder encoder ) {
-		return encoder;
-	}
-	
-	public FixMessageEncoder buildRejectMessage( FixMessageEncoder encoder, SessionRejectMessageException ex ) {
-		return encoder
-		 	.set(45, ex.getRefSeqNum())
-		 	.set(371, ex.getRefTagID())
-		 	.set(372, ex.getRefMsgType())
-		 	.set(373, ex.getSessionRejectReason().ordinal())			 
-		 	.set(58, ex.getText());
-	}
-	
-	public FixMessageEncoder buildBusinessRejectMessage( FixMessageEncoder encoder, BusinessRejectMessageException ex ) {
-		return encoder
-			.set(45, ex.getRefSeqNum())
-			.set(379, ex.getBusinessRejectRefID())
-			.set(372, ex.getRefMsgType())
-			.set(380, ex.getBusinessRejectReason().ordinal())			 
-			.set(58, ex.getText());
-	}
-	
-	public FixMessageEncoder buildGapFillMessage( FixMessageEncoder encoder, int BeginSeqNo, int EndSeqNo ) {
-		return encoder
-			.set(7, BeginSeqNo)
-			.set(16, EndSeqNo);
-	}
-	
-	private long nextOutgoingSequence() {
-		return outgoingSeqNum.incrementAndGet();
-	}
-	
-	void traceOutgoingMessage(FixMessageEncoder enc) {
-		// TODO Auto-generated method stub
-	}
-	
-	int traceIncomingMessage(FixMessageDecoder dec) {
-		// TODO Auto-generated method stub
-		
-		return incomingSeqNum.incrementAndGet();
-	}
-	
-	synchronized void resetIncomingSequence(int newSeqNo) {
-		int currSeq = incomingSeqNum.get();
-		if ( newSeqNo<currSeq ) {
-			throw new RuntimeException("Invalid sequence reset");
-		} else if ( newSeqNo>currSeq ) { 
-			incomingSeqNum.set(newSeqNo);
-		}		
-	}	
 	
 	public static String getSendingTime() {
 		return LocalDateTime.now(ZoneOffset.UTC).format( UTC_TIMESTAMP_MILLIS );
@@ -212,12 +158,13 @@ public abstract class AbstractFixSession {
 		try {			
 			transport.send( fillHeaderFields(enc).build() );			
 			// Trace outgoing messages
-			traceOutgoingMessage( enc );
+			storeOutgoingMessage( enc );
 		} catch (IOException e) {
 			e.printStackTrace();
+			purgeOutgoingMessage( enc );
 		}
 	}
-	
+
 	private final FixMessageEncoder fillHeaderFields( FixMessageEncoder encoder  ) {	
 		return encoder
 				.set( 49, sessionConfig.getSenderCompId() )
@@ -348,4 +295,42 @@ public abstract class AbstractFixSession {
 		return false;
 	}
 	*/
+	
+	private int nextOutgoingSequence() {
+		return persistence.getAndIncrementOutgoingSeq();
+	}
+
+	int getLastIncomingMessage() {
+		return persistence.getLastIncomingSeq();
+	}
+	
+	int getNextIncomingMessage() {
+		return persistence.getLastIncomingSeq() + 1; 
+	}
+	
+	int incLastIncomingMessage() {
+		return persistence.incLastIncomingSeq();
+	}
+	
+	synchronized void resetIncomingSequence(int newSeqNo) {
+		int currSeq = persistence.getLastIncomingSeq();
+		if ( newSeqNo<currSeq ) {
+			throw new RuntimeException("Invalid sequence reset");
+		} else if ( newSeqNo>currSeq ) { 
+			persistence.setLastIncomingSeq(newSeqNo);
+		}		
+	}	
+	
+	void storeOutgoingMessage(FixMessageEncoder enc) {
+		persistence.storeOutgoingMessage(enc.getSeqNum(), enc);
+	}
+	
+	private void purgeOutgoingMessage(FixMessageEncoder enc) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public FixMessageMapper getFixMessageMapper() {
+		return fixMessageMapper;
+	}
 }
