@@ -13,8 +13,9 @@ public class FixMessageMapper {
 			.set( 98, sessionConfig.getEncryptMethod() );
 	}
 	
-	public FixMessageEncoder buildHeartbeatMessage( FixMessageEncoder encoder ) {
-		return encoder;
+	public FixMessageEncoder buildHeartbeatMessage( FixMessageEncoder encoder, String TestReqID ) {
+		return encoder
+			.set(112, TestReqID);
 	}
 	
 	public FixMessageEncoder buildRejectMessage( FixMessageEncoder encoder, SessionRejectMessageException ex ) {
@@ -34,7 +35,7 @@ public class FixMessageMapper {
 			.set(380, ex.getBusinessRejectReason().ordinal())			 
 			.set(58, ex.getText());
 	}
-	
+			
 	public FixMessageEncoder buildGapFillMessage( FixMessageEncoder encoder, int BeginSeqNo, int EndSeqNo ) {
 		return encoder
 			.set(7, BeginSeqNo)

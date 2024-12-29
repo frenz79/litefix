@@ -1,11 +1,14 @@
 package com.litefix.modules.persistence;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class InMemoryPersistence<T extends Serializable> implements IPersistence<T>{
 
+	private final List<T> messages = new ArrayList<>();
+	
 	final AtomicInteger incomingSeqNum = new AtomicInteger(0);
 	final AtomicInteger outgoingSeqNum = new AtomicInteger(1);
 	
@@ -37,31 +40,28 @@ public class InMemoryPersistence<T extends Serializable> implements IPersistence
 	@Override
 	public int incLastIncomingSeq() {
 		return incomingSeqNum.incrementAndGet();
-	}
-	
-	@Override
-	public void reset() {
-		// TODO Auto-generated method stub
-		
-	}
+	}	
 	
 	@Override
 	public void storeOutgoingMessage(int sequence, T message) {
-		// TODO Auto-generated method stub
+		this.messages.add(sequence-1, message);
 	}
 
 	@Override
 	public List<T> getAllOutgoingMessagesInRange(int valueAsInt, int valueAsInt2) {
-		// TODO Auto-generated method stub
-		return null;
+		return this.messages;
 	}
 
 	@Override
 	public T findOutgoingMessageBySeq(int i) {
-		// TODO Auto-generated method stub
-		return null;
+		return this.messages.get(i-1);
 	}
 
+	@Override
+	public void reset() {
+		// TODO Auto-generated method stub
+	}
+	
 	@Override
 	public void close() {
 		// TODO Auto-generated method stub	

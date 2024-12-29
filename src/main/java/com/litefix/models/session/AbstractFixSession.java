@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException.SESSION_REJECT_REASON;
 import com.litefix.commons.utils.ByteUtils;
@@ -333,4 +334,30 @@ public abstract class AbstractFixSession {
 	public FixMessageMapper getFixMessageMapper() {
 		return fixMessageMapper;
 	}
+	
+	public FixMessageEncoder buildGapFillMessage( int BeginSeqNo, int EndSeqNo ) {
+		return getFixMessageMapper().buildGapFillMessage(
+				newEncoder( "2" ),
+				BeginSeqNo,
+				EndSeqNo);
+	}
+	
+	public FixMessageEncoder buildHeartbeatMessage( String TestReqID ) {
+		return getFixMessageMapper().buildHeartbeatMessage(
+				newEncoder( "0" ),
+				TestReqID);
+	}
+	
+	public FixMessageEncoder buildRejectMessage( SessionRejectMessageException ex ) {
+		return getFixMessageMapper().buildRejectMessage(
+				newEncoder( "3" ),
+				ex);
+	}
+	
+	public FixMessageEncoder buildBusinessRejectMessage( BusinessRejectMessageException ex ) {
+		return getFixMessageMapper().buildBusinessRejectMessage(
+				newEncoder( "j" ),
+				ex);
+	}
+	
 }

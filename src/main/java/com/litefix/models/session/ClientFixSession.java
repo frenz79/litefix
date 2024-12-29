@@ -95,11 +95,7 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 				} else if ( delta>0 ) {
 					System.out.println("Gap detected. Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum() );
 					// ..gap detected
-					sendMessage( getFixMessageMapper().buildGapFillMessage(
-							newEncoder( "2" ),
-							expectedIncomingSeqNum,
-							decoder.getSeqNum()
-					));					
+					sendMessage( buildGapFillMessage( expectedIncomingSeqNum, decoder.getSeqNum() ));					
 				} else {
 					incLastIncomingMessage();
 					switch(decoder.getMsgType()) {
@@ -124,19 +120,13 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 				}
 			}
 		} catch( BusinessRejectMessageException ex1 ) {
-			ex1.printStackTrace();
-			
-			sendMessage( getFixMessageMapper().buildBusinessRejectMessage(
-					newEncoder( "j" ),
-					ex1));
+			ex1.printStackTrace();			
+			sendMessage( buildBusinessRejectMessage(ex1));
 			
 		} catch( SessionRejectMessageException ex2 ) {
 			// TODO: Do logout
-			ex2.printStackTrace();
-			
-			sendMessage( getFixMessageMapper().buildRejectMessage(
-					newEncoder( "3" ),
-					ex2));
+			ex2.printStackTrace();			
+			sendMessage( buildRejectMessage(ex2) );
 		} catch (Exception e) {
 			e.printStackTrace();	
 		}
@@ -165,8 +155,7 @@ public class ClientFixSession extends AbstractFixSession implements IClientTrans
 	}
 	// 35=1
 	private void handleTestRequest(FixMessageDecoder decoder) {
-		FixMessageEncoder enc = getFixMessageMapper().buildHeartbeatMessage( newEncoder( "0" ) )
-			.set( 112, decoder.asString(112) ); // TestReqID
+		FixMessageEncoder enc = buildHeartbeatMessage( decoder.asString(112) );
 		sendMessage( enc );
 	}
 	
