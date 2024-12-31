@@ -1,6 +1,6 @@
 package com.litefix.modules.transport;
 
-public interface IClientTransportListener {
+public interface ITransportListener {
 
 	public void onConnect( boolean status );
 

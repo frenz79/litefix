@@ -45,7 +45,7 @@ public class ClientSocketTransport implements IClientTransport {
 	 */
 
 	@Override
-	public void connect(String host, int port, final IClientTransportListener listener ) throws Exception {		
+	public void connect(String host, int port, final ITransportListener listener ) throws Exception {		
 		try {
 			Bootstrap b = new Bootstrap()
 					.group(workerGroup)
@@ -105,13 +105,17 @@ public class ClientSocketTransport implements IClientTransport {
 	}
 
 	@Override
-	public void send(byte[] buffer) throws IOException {
-		this.channel.writeAndFlush(buffer);
+	public boolean send(byte[] buffer) throws IOException {
+		if ( this.channel.isWritable() ) {
+			return this.channel.writeAndFlush(buffer).isSuccess();
+		}
+		return false;
 	}
 
 	@Override
 	public void stop() throws IOException {
 		this.channel.close();        
 		this.workerGroup.shutdownGracefully();
-	}	
+	}
+	
 }

@@ -119,7 +119,6 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 			if (startIdx==fieldLen && buff[i]=='=') {
 				int endIdx = ++i;
 				startIdx = endIdx;
-				boolean isNumber = true;
 				
 				for(; endIdx<endOffset; endIdx++) {
 					if (buff[endIdx]==fieldSep) {
@@ -205,5 +204,11 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 
 	public long getRcvNanoTime() {
 		return rcvNanoTime;
+	}
+
+	@Override
+	public String toString() {
+		return "FixMessageDecoder [msgType=" + msgType + ", seqNum=" + seqNum + ", rcvNanoTime=" + rcvNanoTime 
+				+ ", msgBuff=" + Arrays.toString(msgBuff)+ "]";
 	}
 }

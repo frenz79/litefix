@@ -12,6 +12,7 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 
 	private final FixMessageTemplate dictionaryMsgTemplate;
 	private int seqNum;
+	private final String msgType;
 	
 	private StringBuilder messageBodyStr = new StringBuilder();
 	private Map<String,FixMessageField> msgFields = new HashMap<>();
@@ -19,6 +20,7 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	private FixMessageEncoder( FixMessageDictionary dictionary, String msgType ) {
 		super(dictionary);
 		this.dictionaryMsgTemplate = dictionary.getTemplate(msgType);
+		this.msgType = msgType;
 		if ( this.dictionaryMsgTemplate==null ) {
 			throw new RuntimeException(String.format("Unknwon msgType:%s", msgType));
 		}
@@ -44,6 +46,11 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 		}
 		return f;
 	}
+	
+	public Object get( int id ) {
+		return msgFields.get( NumbersCache.toString(id)).getValue();
+	}
+	
 	
 	public FixMessageEncoder set( int id, String val ) {
 		return set( NumbersCache.toString(id), val);
@@ -154,6 +161,16 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 
 	public void setSeqNum(int seqNum) {
 		this.seqNum = seqNum;
+	}
+
+	public String getMsgType() {
+		return msgType;
+	}
+
+	@Override
+	public String toString() {
+		return "FixMessageEncoder [seqNum=" + seqNum + ", msgType=" + msgType + ", messageBodyStr=" + messageBodyStr
+				+ "]";
 	}
 	
 }

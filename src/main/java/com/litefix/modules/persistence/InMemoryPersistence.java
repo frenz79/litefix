@@ -2,15 +2,22 @@ package com.litefix.modules.persistence;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class InMemoryPersistence<T extends Serializable> implements IPersistence<T>{
 
-	private final List<T> messages = new ArrayList<>();
+	private final Map<Integer,T> messages = new HashMap<>();
 	
 	final AtomicInteger incomingSeqNum = new AtomicInteger(0);
 	final AtomicInteger outgoingSeqNum = new AtomicInteger(1);
+	
+	@Override
+	public void resetOutgoingSequence() {
+		outgoingSeqNum.set(1);
+	}
 	
 	@Override
 	public int getAndIncrementOutgoingSeq() {
@@ -44,17 +51,30 @@ public class InMemoryPersistence<T extends Serializable> implements IPersistence
 	
 	@Override
 	public void storeOutgoingMessage(int sequence, T message) {
-		this.messages.add(sequence-1, message);
+		this.messages.put(sequence, message);
 	}
 
 	@Override
-	public List<T> getAllOutgoingMessagesInRange(int valueAsInt, int valueAsInt2) {
-		return this.messages;
+	public List<T> getAllOutgoingMessagesInRange(int start, int end) {
+		List<T> ret = null;
+		if ( end==0 ) {
+			end = getLastOutgoingSeq()-1;
+		}
+		
+		ret = new ArrayList<>(end-start);
+		for ( int i=start; i<=end; i++ ) {
+			T msg = messages.get(i);
+			if ( msg!=null ) {
+				ret.add(msg);
+			}
+		}
+		
+		return ret;
 	}
 
 	@Override
 	public T findOutgoingMessageBySeq(int i) {
-		return this.messages.get(i-1);
+		return this.messages.get(i);
 	}
 
 	@Override

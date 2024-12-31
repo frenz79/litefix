@@ -26,4 +26,6 @@ public interface IPersistence<T extends Serializable> {
 	int incLastIncomingSeq();
 	
 	void close();
+
+	void resetOutgoingSequence();
 }

@@ -4,6 +4,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
+import com.litefix.commons.utils.FixUUID;
+import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
@@ -27,7 +29,7 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 		sessionCfg.setSenderCompId( "TESTSEND1" );
 		sessionCfg.setTargetCompId( "TESTTARGET1" );
 		sessionCfg.setHeartBtInt( 1 );
-		sessionCfg.setResetSeqNumFlag('Y');
+		sessionCfg.setResetSeqNumFlag('N');
 		sessionCfg.setServerHost("localhost");
 		sessionCfg.setServerPort( 5179);
 		sessionCfg.dictionary = DefaultFix44Dictionary.init();
@@ -86,6 +88,22 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 	public void onLogon(FixMessageDecoder decoder, boolean result) throws SessionRejectMessageException, BusinessRejectMessageException {
 		if (result) {
 			System.out.println("logged in");
+			for (int i=0; i<1; i++ ) {
+				long startTime = System.nanoTime();
+				FixMessageEncoder enc = session.newEncoder( "D" )
+					.set(55, "IT0000000000")	// Symbol
+					.set(11, FixUUID.random() ) // ClOrdID
+				//	.set(15, "EUR" ) // Currency
+					.set(21, '1' )// HandlInst
+					.set(38, 1000 )// OrderQty
+					.set(40, '1' )// OrdType - market
+					.set(54, '1' )// Side
+					.set(60, TimeUtils.getSendingTime() )// TransactTime
+				;
+				session.sendMessage( enc );
+				long now = System.nanoTime();
+				System.out.println("["+TimeUnit.NANOSECONDS.toMicros(now-startTime)+"]micros -> send done");
+			}
 		} else {
 			System.out.println("logged out");
 		}
