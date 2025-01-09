@@ -81,8 +81,8 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 		return this;
 	}
 	
-	StringBuilder buildBodyStringBuilder() {
-		if ( messageBodyStr.length()==0 ) {
+	StringBuilder buildBodyStringBuilder( boolean force ) {
+		if ( messageBodyStr.length()==0 || force ) {
 			// Build Header
 			appendFields( messageBodyStr, dictionary.getAllHeaderFields() );
 			// Build Body
@@ -94,7 +94,15 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	}
 	
 	public byte[] build() {
-		buildBodyStringBuilder();
+		return build( false );
+	}
+	
+	public byte[] forceBuild() {
+		return build( true );
+	}
+	
+	private byte[] build( boolean force ) {
+		buildBodyStringBuilder( force );
 		setPrefix( messageBodyStr );
 		setChecksum( messageBodyStr );
 		return messageBodyStr.toString().getBytes();

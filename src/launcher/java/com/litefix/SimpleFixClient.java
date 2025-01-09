@@ -30,8 +30,8 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 		sessionCfg.setTargetCompId( "TESTTARGET1" );
 		sessionCfg.setHeartBtInt( 1 );
 		sessionCfg.setResetSeqNumFlag('N');
-		sessionCfg.setServerHost("localhost");
-		sessionCfg.setServerPort( 5179);
+		sessionCfg.addServer("localhost", 5178);
+		sessionCfg.addServer("localhost", 5179);
 		sessionCfg.dictionary = DefaultFix44Dictionary.init();
 		
 		transport = new ClientSocketTransport(sessionCfg.getDictionary().getBeginString());
@@ -43,7 +43,7 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 		session = new ClientFixSession( transport, persistence, sessionCfg );
 		session.addAllMessagesListener( this );
 		session.addSessionListener( this );
-		session.doConnect();
+		session.doConnect( true, true );
 	}	
 	
 	public static void main( String[] args ) throws Exception {
@@ -65,23 +65,12 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 
 	@Override
 	public void onLogout(FixMessageDecoder decoder) {
-		System.out.println("logged out");
-		session.doLogon();
+		System.out.println("logged out..");
 	}
 	
 	@Override
 	public void onConnect(boolean upOrDown) {
 		System.out.println("connected:"+upOrDown);
-		if ( upOrDown ) {
-			session.doLogon();
-		} else {
-			try {
-				session.doConnect();
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
 	}
 
 	@Override

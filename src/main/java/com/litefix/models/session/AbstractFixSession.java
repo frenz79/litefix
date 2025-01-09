@@ -7,8 +7,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.TreeMap;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
@@ -40,7 +38,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private final IPersistence<FixMessageEncoder> persistence;
 	private final ITransport transport;
 	private final FixMessageMapper fixMessageMapper;
-
+	
 	public AbstractFixSession(ITransport transport, IPersistence<FixMessageEncoder> persistence, ClientFixSessionConfig sessionConfig) {
 		this.sessionConfig = sessionConfig;
 		this.transport = transport;
@@ -59,50 +57,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	private long lastGapFillMessageWaitTime = 10_000l;
 	private long lastGapFillMessageSendTime = 0l;
-	private TreeMap<Integer,FixMessageDecoder> gapQueue = new TreeMap<>();
 	
-	private boolean isThereASequenceGap( FixMessageDecoder decoder ) throws SessionRejectMessageException, BusinessRejectMessageException {
-		// Sequence Reset must bypass seq check
-		if ( "4".equals(decoder.getMsgType()) || "2".equals(decoder.getMsgType())) {
-			return false;
-		}
-		
-		// Trace incoming message
-		int expectedIncomingSeqNum = persistence.getLastIncomingSeq() + 1;
-		int delta = decoder.getSeqNum() - expectedIncomingSeqNum;
-
-		if ( delta<0 ) {			
-			gapQueue.put(decoder.getSeqNum(), decoder);
-			if (gapQueue.size()==-1*delta) {
-				System.out.println("Gap filled, processing all queue messages");
-				
-				for( Entry<Integer, FixMessageDecoder> entry : gapQueue.entrySet() ) {
-					handleApplicativeMessage( entry.getValue() );
-				}
-				gapQueue.clear();
-				return true;
-			} else {
-				System.out.println("Old message with seq:"+decoder.getSeqNum()+" queued");
-			}
-			
-		} else if ( delta>0 ) {
-			long now = System.currentTimeMillis();
-			
-			System.out.println("Adding seq:"+decoder.getSeqNum()+" to queue.");
-			gapQueue.put(decoder.getSeqNum(), decoder);
-			
-			if (now-lastGapFillMessageSendTime>lastGapFillMessageWaitTime) {
-				lastGapFillMessageSendTime = now;
-				System.out.println("Gap detected. Sending ResendRequest FROM: "+expectedIncomingSeqNum+" TO:"+decoder.getSeqNum() );
-				sendMessage( buildGapFillMessage( expectedIncomingSeqNum, decoder.getSeqNum() ));
-				return true;
-			}
-			
-			System.out.println("Gap detected. Already sent ResendRequest FROM: "+expectedIncomingSeqNum+" TO: "+decoder.getSeqNum()+". Not sending another.");
-		}
-		return false;
-	}
-
 	@Override
 	public void onMessage( byte[] buffer, int from, int len, long rcvNanoTime ) {
 		try {
@@ -116,13 +71,16 @@ public abstract class AbstractFixSession implements ITransportListener{
 	
 			FixMessageDecoder decoder = newDecoder( buffer, from, len, rcvNanoTime );
 			validate( sessionConfig, decoder, decoder.getMsgType() );
-			
-			if ( !sessionSM.isLoggedOn() ) {
-				persistence.incLastIncomingSeq();
-				
+						
+			if ( !sessionSM.isLoggedOn() ) {			
 				switch(decoder.getMsgType()) {
-				case "A": handleLogonResp(decoder); break;
-				case "5": handleLogout(decoder); break;
+				case "A": 
+					handleLogonResp(decoder); 
+					persistence.incLastIncomingSeq();
+					break;
+				case "5": 
+					handleLogout(decoder); 
+					break;
 				default:
 					throw new SessionRejectMessageException(
 							decoder.getSeqNum(),
@@ -132,9 +90,6 @@ public abstract class AbstractFixSession implements ITransportListener{
 							String.format("Only msgType 'A' or '5' supported when not logged in.Discarded msgType:%s",decoder.getMsgType()));
 				}
 			} else {				
-				if ( isThereASequenceGap(decoder) ) {
-					return;
-				}
 				handleApplicativeMessage(decoder);
 			}
 		} catch( BusinessRejectMessageException ex1 ) {
@@ -150,13 +105,52 @@ public abstract class AbstractFixSession implements ITransportListener{
 	}
 	
 	private void handleApplicativeMessage( FixMessageDecoder decoder ) throws SessionRejectMessageException, BusinessRejectMessageException {
+		
+		if ( "4".equals(decoder.getMsgType())) {
+			Integer NewSeqNo = decoder.asInt(36);
+			Boolean GapFillFlag = decoder.asBoolean(123);
+			if ( Boolean.TRUE.equals(GapFillFlag) ) {
+				// Gap fill
+				System.out.println("got GapFill to:"+NewSeqNo);
+				resetIncomingSequence( NewSeqNo );
+			} else {
+				// Reset mode
+				System.out.println("got SequenceReset to:"+NewSeqNo);
+				resetIncomingSequence( NewSeqNo );					
+			}				
+			return;
+		}
+		
+		int lastRcvMessageSeq = persistence.getLastIncomingSeq();
+		
+		// Sequence numbers check
+		if ( lastRcvMessageSeq>=0 ) {
+			int expectedIncomingSeqNum = lastRcvMessageSeq+1;
+			if ( expectedIncomingSeqNum>decoder.getSeqNum() ) {
+				System.out.println("Old or duplicated message detected, discarding message:"+decoder.getSeqNum()+". Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum());
+				return;
+			} else if ( expectedIncomingSeqNum>decoder.getSeqNum() ) {
+				System.out.println("Gap detected, discarding message:"+decoder.getSeqNum()+". Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum());
+
+				long now = System.currentTimeMillis();
+				if (now-lastGapFillMessageSendTime>lastGapFillMessageWaitTime) {
+					System.out.println("sending ResendRequest FROM: "+lastRcvMessageSeq+" TO: 0" );
+					sendMessage( buildGapFillMessage( expectedIncomingSeqNum, 0 ));
+					lastGapFillMessageSendTime = now;
+				} else {
+					System.out.println("Gap detected. Already sent ResendRequest FROM: "+expectedIncomingSeqNum+" TO: "+decoder.getSeqNum()+". Not sending another.");
+				}
+				return;
+			}
+		}	
+		
+		
 		persistence.incLastIncomingSeq();
 		
 		switch(decoder.getMsgType()) {
 		case "0": handleHeartbeat(decoder); break;
 		case "1": handleTestRequest(decoder); break;
 		case "2": handleGapFillRequest(decoder); break;
-		case "4": handleSequenceReset(decoder); break;
 		default:
 			IFixMessageListener listener = getMessageListener(decoder.getMsgType());
 			if ( listener!=null ) {
@@ -175,13 +169,13 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	// 35=A
 	private void handleLogonResp(FixMessageDecoder decoder) throws SessionRejectMessageException, BusinessRejectMessageException {
-		getSessionListener().onLogon(decoder, true);
 		sessionSM.logon(true);
+		getSessionListener().onLogon(decoder, true);
 	}
 	// 35=5
 	private void handleLogout(FixMessageDecoder decoder) {
-		getSessionListener().onLogout(decoder);
 		sessionSM.logon(false);
+		getSessionListener().onLogout(decoder);
 	}
 	// 35=0
 	private void handleHeartbeat(FixMessageDecoder decoder) {
@@ -191,12 +185,6 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private void handleTestRequest(FixMessageDecoder decoder) {
 		FixMessageEncoder enc = buildHeartbeatMessage( decoder.asString(112) );
 		sendMessage( enc );
-	}
-	// 35=
-	private void handleSequenceReset(FixMessageDecoder decoder) {
-		int NewSeqNo = decoder.asInt(36);
-		System.out.println("got SequenceReset to:"+NewSeqNo);
-		resetIncomingSequence( NewSeqNo-1 );
 	}
 	// 35=2
 	private void handleGapFillRequest(FixMessageDecoder decoder) throws SessionRejectMessageException {
@@ -238,10 +226,10 @@ public abstract class AbstractFixSession implements ITransportListener{
 		for ( FixMessageEncoder msg : msgList ) {
 			if ( isAdministrativeMessage( msg.getMsgType()) ) {
 				System.out.println("Skipping Administrative msg SeqNum:"+msg.getSeqNum());
-				sendMessage( buildGapFillMessage(BeginSeqNo, msg.getSeqNum() ));
+				sendAdminMessage( buildGapFillMessage(BeginSeqNo, msg.getSeqNum() ), BeginSeqNo);
 			} else {
 				System.out.println("Retransmitting SeqNum:"+msg.getSeqNum());
-				sendMessage( buildRetransmissionMessage( msg ));
+				sendDupMessage( buildRetransmissionMessage( msg ));
 			}
 		}
 	}
@@ -367,9 +355,35 @@ public abstract class AbstractFixSession implements ITransportListener{
 		return true;
 	}
 
+	private void sendAdminMessage( FixMessageEncoder enc, int seqNum ) {
+		try {
+			byte[] outMsg = fillHeaderFields(enc, seqNum).build();
+			if ( transport.send( outMsg ) ) {
+				System.out.println(">> "+new String(outMsg) );
+			} else {
+				System.out.println(">> WRITE FAILED");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void sendDupMessage( FixMessageEncoder enc ) {
+		try {
+			byte[] outMsg = enc.set( 52, getSendingTime() ).forceBuild();
+			if ( transport.send( outMsg ) ) {
+				System.out.println(">> "+new String(outMsg) );
+			} else {
+				System.out.println(">> WRITE FAILED");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public void sendMessage( FixMessageEncoder enc ) {
 		try {
-			byte[] outMsg = fillHeaderFields(enc).build();
+			byte[] outMsg = fillHeaderFields(enc, -1).build();
 			if ( transport.send( outMsg ) ) {			
 				// Trace outgoing messages
 				persistence.storeOutgoingMessage(enc.getSeqNum(), enc);
@@ -382,12 +396,12 @@ public abstract class AbstractFixSession implements ITransportListener{
 			purgeOutgoingMessage( enc );
 		}
 	}
-
-	private final FixMessageEncoder fillHeaderFields( FixMessageEncoder encoder  ) {	
+	
+	private final FixMessageEncoder fillHeaderFields( FixMessageEncoder encoder, int seqNum  ) {	
 		return encoder
 				.set( 49, sessionConfig.getSenderCompId() )
 				.set( 56, sessionConfig.getTargetCompId() )
-				.set( 34, persistence.getAndIncrementOutgoingSeq() )
+				.set( 34, (seqNum>0)?seqNum:persistence.getAndIncrementOutgoingSeq() )
 				.set( 52, getSendingTime() );
 	}
 
@@ -434,10 +448,10 @@ public abstract class AbstractFixSession implements ITransportListener{
 	}
 
 	private FixMessageEncoder buildRetransmissionMessage( FixMessageEncoder enc ) {
-		return fillHeaderFields(
-				enc.set(43, true) // PossDupFlag 
-				.set(122, (String)enc.get(52)) // OrigSendingTime = SendingTime 
-				);
+		return enc
+			.set(43, true) // PossDupFlag 
+			.set(122, (String)enc.get(52)) // OrigSendingTime = SendingTime 
+		;
 	}
 	
 	public ITransport getTransport() {

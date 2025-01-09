@@ -1,5 +1,8 @@
 package com.litefix.models.session;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.litefix.models.fixmessage.FixMessageDictionary;
 
 public class ClientFixSessionConfig {
@@ -10,13 +13,37 @@ public class ClientFixSessionConfig {
 	private byte[] memSenderCompIdBytes;
 	private byte[] memTargetCompIdBytes;
 	
-	private String serverHost;
-	private int serverPort;
 	private int heartBtInt = 0;
 	private int encryptMethod = 0;
 	private char resetSeqNumFlag = 'Y';
 	
+	private List<FixServerHost> serverHosts = new ArrayList<>();
+	
 	public FixMessageDictionary dictionary;
+	
+	public static class FixServerHost {
+		private final String name;
+		private final int port;
+		
+		public FixServerHost(String name, int port) {
+			super();
+			this.name = name;
+			this.port = port;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public int getPort() {
+			return port;
+		}
+
+		@Override
+		public String toString() {
+			return "FixServerHost [name=" + name + ", port=" + port + "]";
+		}
+	}
 	
 	public byte[] getSenderCompIdBytes() {
 		return memSenderCompIdBytes;
@@ -42,22 +69,6 @@ public class ClientFixSessionConfig {
 	public void setTargetCompId(String targetCompId) {
 		this.targetCompId = targetCompId;
 		this.memTargetCompIdBytes = targetCompId.getBytes();
-	}
-
-	public String getServerHost() {
-		return serverHost;
-	}
-
-	public void setServerHost(String serverHost) {
-		this.serverHost = serverHost;
-	}
-
-	public int getServerPort() {
-		return serverPort;
-	}
-
-	public void setServerPort(int serverPort) {
-		this.serverPort = serverPort;
 	}
 
 	public int getHeartBtInt() {
@@ -91,6 +102,17 @@ public class ClientFixSessionConfig {
 	public void setDictionary(FixMessageDictionary dictionary) {
 		this.dictionary = dictionary;
 	}
-	
+
+	public List<FixServerHost> getServerHosts() {
+		return serverHosts;
+	}
+
+	public void setServerHosts(List<FixServerHost> serverHosts) {
+		this.serverHosts = serverHosts;
+	}
+
+	public void addServer(String host, int port) {
+		this.serverHosts.add( new FixServerHost(host, port));
+	}	
 	
 }
