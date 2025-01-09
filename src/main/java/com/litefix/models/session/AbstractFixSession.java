@@ -1,6 +1,5 @@
 package com.litefix.models.session;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -28,12 +27,16 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	final ClientFixSessionConfig sessionConfig;
 
-	public static long SENDING_TIME_ACCURACY_THREASHOLD_MILLIS = 1000L;
+	private static long SENDING_TIME_ACCURACY_THREASHOLD_MILLIS = 1000L;
 
-	public static final int CRC_BODY_FIELD_SIZE = 7;
-
+	private static final int CRC_BODY_FIELD_SIZE = 7;
+	
+	private long lastGapFillMessageWaitTime = 10_000l;
+	private long lastGapFillMessageSendTime = 0l;
+	
 	private Map<String,IFixMessageListener> msgListeners = new HashMap<>();
 	private IFixSessionListener sessionListener;
+	private IRetransmissionInterceptor retransmissionInterceptor;
 
 	private final IPersistence<FixMessageEncoder> persistence;
 	private final ITransport transport;
@@ -54,9 +57,6 @@ public abstract class AbstractFixSession implements ITransportListener{
 		}
 		return l;
 	}
-
-	private long lastGapFillMessageWaitTime = 10_000l;
-	private long lastGapFillMessageSendTime = 0l;
 	
 	@Override
 	public void onMessage( byte[] buffer, int from, int len, long rcvNanoTime ) {
@@ -142,8 +142,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 				}
 				return;
 			}
-		}	
-		
+		}		
 		
 		persistence.incLastIncomingSeq();
 		
@@ -224,12 +223,12 @@ public abstract class AbstractFixSession implements ITransportListener{
 		}
 
 		for ( FixMessageEncoder msg : msgList ) {
-			if ( isAdministrativeMessage( msg.getMsgType()) ) {
-				System.out.println("Skipping Administrative msg SeqNum:"+msg.getSeqNum());
+			if ( isAdministrativeMessage( msg.getMsgType()) || (retransmissionInterceptor!=null && !retransmissionInterceptor.canRetransmit(msg)) ) {
+				System.out.println("Skipping msg SeqNum:"+msg.getSeqNum());
 				sendAdminMessage( buildGapFillMessage(BeginSeqNo, msg.getSeqNum() ), BeginSeqNo);
 			} else {
 				System.out.println("Retransmitting SeqNum:"+msg.getSeqNum());
-				sendDupMessage( buildRetransmissionMessage( msg ));
+				sendDupMessage( buildRetransmissionMessage( msg ));		
 			}
 		}
 	}
@@ -245,16 +244,24 @@ public abstract class AbstractFixSession implements ITransportListener{
 				;
 	}
 
-	public void addMessageListener( String msgType, IFixMessageListener listener ) {
+	public AbstractFixSession withMessageListener( String msgType, IFixMessageListener listener ) {
 		this.msgListeners.put(msgType, listener);
+		return this;
 	}
 
-	public void addAllMessagesListener( IFixMessageListener listener ) {
+	public AbstractFixSession withAllMessagesListener( IFixMessageListener listener ) {
 		this.msgListeners.put("*", listener);
+		return this;
 	}
 
-	public void addSessionListener( IFixSessionListener listener) {
+	public AbstractFixSession withSessionListener( IFixSessionListener listener) {
 		this.sessionListener = listener;
+		return this;
+	}
+	 
+	public AbstractFixSession withRetransmissionInterceptor( IRetransmissionInterceptor retransmissionInterceptor ) {
+		this.retransmissionInterceptor = retransmissionInterceptor;
+		return this;
 	}
 
 	public IFixSessionListener getSessionListener( ) {
@@ -262,11 +269,11 @@ public abstract class AbstractFixSession implements ITransportListener{
 	}
 
 	public FixMessageEncoder newEncoder( String msgType ) {
-		return FixMessageEncoder.newEncoder( sessionConfig.dictionary, msgType );
+		return FixMessageEncoder.newEncoder( sessionConfig.getDictionary(), msgType );
 	}
 
 	public FixMessageDecoder newDecoder(  byte[] buffer, int from, int len, long rcvNanoTime ) {
-		return FixMessageDecoder.newDecoder( sessionConfig.dictionary, buffer, from, len, rcvNanoTime );
+		return FixMessageDecoder.newDecoder( sessionConfig.getDictionary(), buffer, from, len, rcvNanoTime );
 	}	
 
 	public static String getSendingTime() {
@@ -358,12 +365,8 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private void sendAdminMessage( FixMessageEncoder enc, int seqNum ) {
 		try {
 			byte[] outMsg = fillHeaderFields(enc, seqNum).build();
-			if ( transport.send( outMsg ) ) {
-				System.out.println(">> "+new String(outMsg) );
-			} else {
-				System.out.println(">> WRITE FAILED");
-			}
-		} catch (IOException e) {
+			send( outMsg );
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -371,29 +374,34 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private void sendDupMessage( FixMessageEncoder enc ) {
 		try {
 			byte[] outMsg = enc.set( 52, getSendingTime() ).forceBuild();
-			if ( transport.send( outMsg ) ) {
-				System.out.println(">> "+new String(outMsg) );
-			} else {
-				System.out.println(">> WRITE FAILED");
-			}
-		} catch (IOException e) {
+			send( outMsg );
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public void sendMessage( FixMessageEncoder enc ) {
+	public void sendMessage( FixMessageEncoder enc ) {		
 		try {
 			byte[] outMsg = fillHeaderFields(enc, -1).build();
-			if ( transport.send( outMsg ) ) {			
-				// Trace outgoing messages
+			if ( send(outMsg) ) {
 				persistence.storeOutgoingMessage(enc.getSeqNum(), enc);
-				System.out.println(">> "+new String(outMsg) );
-			} else {
-				System.out.println(">> WRITE FAILED");
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
-			purgeOutgoingMessage( enc );
+		}
+	}
+	
+	private boolean send( byte[] outMsg ) {
+		try {
+			if ( transport.send( outMsg ) ) {
+				System.out.println(">> "+new String(outMsg) );
+				return true;
+			}
+			System.out.println(">> WRITE FAILED");
+			return false;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
 		}
 	}
 	

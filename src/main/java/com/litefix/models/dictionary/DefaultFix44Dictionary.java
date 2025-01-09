@@ -9,13 +9,13 @@ public class DefaultFix44Dictionary {
 	private static FixMessageDictionary dictionary;	
 	
 	public static FixMessageDictionary init() {
-		dictionary = new FixMessageDictionary("FIX.4.4", '.')
+		dictionary = new FixMessageDictionary("FIX.4.4", '', '.')
 			.addTrailer(93, "SignatureLength", false, FieldType.INTEGER)
 			.addTrailer(89, "Signature", false, FieldType.STRING)
-	//		.addTrailer(10, "CheckSum", true, FieldType.STRING)
+			.addTrailer(10, "CheckSum", true, FieldType.RESERVED)
 
-	//		.addHeader(8, "BeginString", true, FieldType.STRING)
-	//		.addHeader(9, "BodyLen", true, FieldType.INTEGER)
+			.addHeader(8, "BeginString", true, FieldType.RESERVED)
+			.addHeader(9, "BodyLen", true, FieldType.RESERVED)
 			.addHeader(35, "MsgType", true, FieldType.STRING)
 			.addHeader(49, "SenderCompID", true, FieldType.STRING)
 			.addHeader(56, "TargetCompID", true, FieldType.STRING)

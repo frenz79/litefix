@@ -19,7 +19,7 @@ public class ClientFixSessionConfig {
 	
 	private List<FixServerHost> serverHosts = new ArrayList<>();
 	
-	public FixMessageDictionary dictionary;
+	private FixMessageDictionary dictionary;
 	
 	public static class FixServerHost {
 		private final String name;
@@ -57,62 +57,70 @@ public class ClientFixSessionConfig {
 		return senderCompId;
 	}
 
-	public void setSenderCompId(String senderCompId) {
+	public ClientFixSessionConfig setSenderCompId(String senderCompId) {
 		this.senderCompId = senderCompId;
 		this.memSenderCompIdBytes = senderCompId.getBytes();
+		return this;
 	}
 
 	public String getTargetCompId() {
 		return targetCompId;
 	}
 
-	public void setTargetCompId(String targetCompId) {
+	public ClientFixSessionConfig setTargetCompId(String targetCompId) {
 		this.targetCompId = targetCompId;
 		this.memTargetCompIdBytes = targetCompId.getBytes();
+		return this;
 	}
 
 	public int getHeartBtInt() {
 		return heartBtInt;
 	}
 
-	public void setHeartBtInt(int heartBtInt) {
+	public ClientFixSessionConfig setHeartBtInt(int heartBtInt) {
 		this.heartBtInt = heartBtInt;
+		return this;
 	}
 
 	public int getEncryptMethod() {
 		return encryptMethod;
 	}
 
-	public void setEncryptMethod(int encryptMethod) {
+	public ClientFixSessionConfig setEncryptMethod(int encryptMethod) {
 		this.encryptMethod = encryptMethod;
+		return this;
 	}
 
 	public char getResetSeqNumFlag() {
 		return resetSeqNumFlag;
 	}
 
-	public void setResetSeqNumFlag(char resetSeqNumFlag) {
+	public ClientFixSessionConfig setResetSeqNumFlag(char resetSeqNumFlag) {
 		this.resetSeqNumFlag = resetSeqNumFlag;
+		return this;
 	}
 
 	public FixMessageDictionary getDictionary() {
 		return dictionary;
 	}
 
-	public void setDictionary(FixMessageDictionary dictionary) {
+	public ClientFixSessionConfig setDictionary(FixMessageDictionary dictionary) {
 		this.dictionary = dictionary;
+		return this;
 	}
 
 	public List<FixServerHost> getServerHosts() {
 		return serverHosts;
 	}
 
-	public void setServerHosts(List<FixServerHost> serverHosts) {
+	public ClientFixSessionConfig setServerHosts(List<FixServerHost> serverHosts) {
 		this.serverHosts = serverHosts;
+		return this;
 	}
 
-	public void addServer(String host, int port) {
+	public ClientFixSessionConfig addServer(String host, int port) {
 		this.serverHosts.add( new FixServerHost(host, port));
+		return this;
 	}	
 	
 }

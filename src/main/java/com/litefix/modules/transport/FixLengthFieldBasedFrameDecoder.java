@@ -9,7 +9,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 //Based on LengthFieldBasedFrameDecoder
 public class FixLengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 	
-	private static final char FIELD_SEPARATOR = '';
+	private char fieldSeparator = '';
 	private static final int CRC_BODY_FIELD_SIZE = 8;
 	private static final byte BYTE_0 = (byte)'0';
 	private static final int POW10_0 = (int)Math.pow(10,0);
@@ -22,8 +22,9 @@ public class FixLengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 	
 	private int frameLengthInt = -1;
 
-	public FixLengthFieldBasedFrameDecoder( String beginString ){
-		this.lengthFieldOffset = ("8="+beginString+FIELD_SEPARATOR+"9=").getBytes().length;
+	public FixLengthFieldBasedFrameDecoder( String beginString, char fieldSeparator ){
+		this.fieldSeparator = fieldSeparator;
+		this.lengthFieldOffset = ("8="+beginString+fieldSeparator+"9=").getBytes().length;
 	}
 
 	private static final int pow10( int exp ) {
@@ -42,7 +43,7 @@ public class FixLengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 		byte b[] = new byte[8];
 		int i=0;
 		int readerOffset = in.readerIndex(); 
-		while ( (b[i] = in.getByte(readerOffset+lengthFieldOffset+i))!=FIELD_SEPARATOR) {
+		while ( (b[i] = in.getByte(readerOffset+lengthFieldOffset+i))!=this.fieldSeparator) {
 			i++;
 		};
 		for (int j=i-1; j>=0; j--) {

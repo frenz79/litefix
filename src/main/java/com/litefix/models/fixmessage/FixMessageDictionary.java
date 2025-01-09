@@ -57,7 +57,9 @@ public class FixMessageDictionary {
 		INTEGER,
 		DECIMAL,
 		UTC_TIMESTAMP,
-		GROUP_SIZE
+		GROUP_SIZE,
+		
+		RESERVED
 	}
 	
 	public FixMessageDictionary addTrailer( int id, String name, boolean mandatory, FieldType type) {

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.litefix.caches.NumbersCache;
+import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;
 import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageFieldTemplate;
 import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageTemplate;
 
@@ -137,7 +138,7 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 			String fieldId = NumbersCache.toString(fieldTemplate.getId());			
 			FixMessageField fieldValue = msgFields.get( fieldId );
 			
-			if ( fieldValue!=null ) {
+			if ( fieldValue!=null && !FieldType.RESERVED.equals( fieldTemplate.getType())) {
 				strBld.append(fieldId).append('=');
 				
 				if ( fieldValue.getValue()!=null ) {

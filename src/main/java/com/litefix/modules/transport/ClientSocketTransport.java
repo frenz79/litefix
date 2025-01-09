@@ -1,39 +1,34 @@
 package com.litefix.modules.transport;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.group.ChannelGroupFuture;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
-import io.netty.util.concurrent.GenericFutureListener;
 
 // https://github.com/devsunny/netty-ssl-example/blob/master/src/main/java/com/asksunny/ssl/SecureSokcetTrustManagerFactory.java
 public class ClientSocketTransport implements IClientTransport {
 
 	private final EventLoopGroup workerGroup;
 	private final String fixBeginString;
+	private final char fieldSep;
 	private Channel channel;
 
-	public ClientSocketTransport( String fixBeginString ) {
+	public ClientSocketTransport( String fixBeginString, char fieldSep ) {
 		this.workerGroup = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory()/*EpollIoHandler.newFactory()*/);
 		this.fixBeginString = fixBeginString;
+		this.fieldSep = fieldSep;
 	}
 
 	/*
@@ -72,7 +67,7 @@ public class ClientSocketTransport implements IClientTransport {
 					//		pipeline.addLast("ssl", new SslHandler(engine));
 
 					//    	pipeline.addLast(new LengthFieldBasedFrameDecoder(8192, 0, 0));
-					pipeline.addLast(new FixLengthFieldBasedFrameDecoder(fixBeginString));
+					pipeline.addLast(new FixLengthFieldBasedFrameDecoder( fixBeginString, fieldSep ));
 					pipeline.addLast(new ByteArrayDecoder());
 					pipeline.addLast(new ByteArrayEncoder());
 

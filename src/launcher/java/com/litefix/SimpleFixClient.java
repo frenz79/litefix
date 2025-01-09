@@ -13,36 +13,39 @@ import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.IFixMessageListener;
 import com.litefix.models.session.IFixSessionListener;
+import com.litefix.models.session.IRetransmissionInterceptor;
 import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.persistence.InMemoryPersistence;
 import com.litefix.modules.transport.ClientSocketTransport;
 import com.litefix.modules.transport.IClientTransport;
 
-public class SimpleFixClient implements IFixMessageListener, IFixSessionListener {
+public class SimpleFixClient implements IFixMessageListener, IFixSessionListener, IRetransmissionInterceptor {
 
-	private ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig();
+	private ClientFixSessionConfig sessionCfg;
 	private IClientTransport transport;
 	private IPersistence<FixMessageEncoder> persistence;
 	private ClientFixSession session;
 	
 	public SimpleFixClient() {
-		sessionCfg.setSenderCompId( "TESTSEND1" );
-		sessionCfg.setTargetCompId( "TESTTARGET1" );
-		sessionCfg.setHeartBtInt( 1 );
-		sessionCfg.setResetSeqNumFlag('N');
-		sessionCfg.addServer("localhost", 5178);
-		sessionCfg.addServer("localhost", 5179);
-		sessionCfg.dictionary = DefaultFix44Dictionary.init();
+		sessionCfg = new ClientFixSessionConfig()
+			.setSenderCompId( "TESTSEND1" )
+			.setTargetCompId( "TESTTARGET1" )
+			.setHeartBtInt( 1 )
+			.setResetSeqNumFlag('N')
+			.addServer("localhost", 5178)
+			.addServer("localhost", 5179)
+			.setDictionary( DefaultFix44Dictionary.init() );
 		
-		transport = new ClientSocketTransport(sessionCfg.getDictionary().getBeginString());
-		
+		transport = new ClientSocketTransport( sessionCfg.getDictionary().getBeginString(), sessionCfg.getDictionary().getFieldSep() );		
 		persistence = new InMemoryPersistence<FixMessageEncoder>();
 	}
 	
 	public void start() throws Exception {
-		session = new ClientFixSession( transport, persistence, sessionCfg );
-		session.addAllMessagesListener( this );
-		session.addSessionListener( this );
+		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
+		.withAllMessagesListener( this )
+		.withSessionListener( this )
+		.withRetransmissionInterceptor( null );
+		
 		session.doConnect( true, true );
 	}	
 	
@@ -157,4 +160,10 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 		}
 	}
 	*/
+
+	@Override
+	public boolean canRetransmit(FixMessageEncoder msg) {
+		// Always retransmit
+		return true;
+	}
 }
