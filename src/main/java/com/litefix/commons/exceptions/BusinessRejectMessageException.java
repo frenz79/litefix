@@ -1,5 +1,7 @@
 package com.litefix.commons.exceptions;
 
+import com.litefix.models.fixmessage.FixMessageDecoder;
+
 public class BusinessRejectMessageException extends Exception {
 
 	private final int RefSeqNum;
@@ -25,6 +27,15 @@ public class BusinessRejectMessageException extends Exception {
 		public int getValue() {
 			return value;
 		}
+	}
+	
+	public BusinessRejectMessageException(FixMessageDecoder msgDecoder,BUSINESS_REJECT_REASON businessRejectReason, String text) {
+		super();
+		RefSeqNum = msgDecoder.getSeqNum();
+		RefMsgType = msgDecoder.getMsgType();
+		BusinessRejectRefID = "";
+		BusinessRejectReason = businessRejectReason;
+		Text = text;
 	}
 	
 	public BusinessRejectMessageException(int refSeqNum, String refMsgType, String businessRejectRefID,

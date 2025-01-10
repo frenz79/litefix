@@ -27,6 +27,11 @@ public class FixMessageMapper {
 		 	.set(58, ex.getText());
 	}
 	
+	public FixMessageEncoder buildLogoutMessage( FixMessageEncoder encoder, SessionRejectMessageException ex ) {
+		return encoder	 
+		 	.set(58, ex.getText());
+	}	
+	
 	public FixMessageEncoder buildBusinessRejectMessage( FixMessageEncoder encoder, BusinessRejectMessageException ex ) {
 		return encoder
 			.set(45, ex.getRefSeqNum())

@@ -1,5 +1,8 @@
 package com.litefix.commons.exceptions;
 
+import com.litefix.commons.exceptions.BusinessRejectMessageException.BUSINESS_REJECT_REASON;
+import com.litefix.models.fixmessage.FixMessageDecoder;
+
 public class SessionRejectMessageException extends Exception {
 
 	public SessionRejectMessageException(int refSeqNum, int refTagID, String refMsgType, 
@@ -12,6 +15,17 @@ public class SessionRejectMessageException extends Exception {
 		Text = text;
 		EncodedTextLen = encodedTextLen;
 		EncodedText = encodedText;
+	}
+	
+	public SessionRejectMessageException(FixMessageDecoder msgDecoder, int refTagID, SESSION_REJECT_REASON sessionRejectReason, String text) {
+		super();
+		RefSeqNum = msgDecoder.getSeqNum();
+		RefTagID = refTagID;
+		RefMsgType = msgDecoder.getMsgType();
+		SessionRejectReason = sessionRejectReason;
+		Text = text;
+		EncodedTextLen = 0;
+		EncodedText = null;
 	}
 	
 	public SessionRejectMessageException(int refSeqNum, int refTagID, String refMsgType, 
