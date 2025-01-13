@@ -1,6 +1,12 @@
 package com.litefix.modules.transport;
 
 import java.io.IOException;
+import java.security.KeyStore;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
+
+import com.litefix.models.session.SSLSettings;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -16,6 +22,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 // https://github.com/devsunny/netty-ssl-example/blob/master/src/main/java/com/asksunny/ssl/SecureSokcetTrustManagerFactory.java
 public class ClientSocketTransport implements IClientTransport {
@@ -24,30 +33,41 @@ public class ClientSocketTransport implements IClientTransport {
 	private final String fixBeginString;
 	private final char fieldSep;
 	private Channel channel;
-
+	
 	public ClientSocketTransport( String fixBeginString, char fieldSep ) {
 		this.workerGroup = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory()/*EpollIoHandler.newFactory()*/);
 		this.fixBeginString = fixBeginString;
 		this.fieldSep = fieldSep;
 	}
+	
+	private void initializeSSL(String host, int port, SSLSettings sslSettings, SocketChannel ch ) throws Exception {	
+		KeyStore keyStore = KeyStore.getInstance( sslSettings.getKeyStoreType() );
+		keyStore.load(sslSettings.getKeyStoreCert(), sslSettings.getKeyStorePwd().toCharArray());
+		
+		KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance( sslSettings.getKeyManagerFactoryAlgo() );
+		keyManagerFactory.init(keyStore, sslSettings.getKeyStorePwd().toCharArray());
 
-	/*
-		public class WebSocketHandler extends SimpleChannelInboundHandler { 
-		  @Override 
-		  public void channelRead0(ChannelHandlerContext ctx, 
-		                           WebSocketFrame msg) 
-		                           throws Exception { 
-		    if (msg instanceof TextWebSocketFrame) { 
-		      String message = ((TextWebSocketFrame) msg).text(); 
-		      // Handle WebSocket message 
-		      ctx.writeAndFlush(new TextWebSocketFrame("Echo: " + message)); 
-		    } 
-		  } 
+		KeyStore trustStore = KeyStore.getInstance( sslSettings.getTrustStoreType() );
+		trustStore.load(sslSettings.getTrustStoreCert(), sslSettings.getTrustStorePwd().toCharArray());
+		
+		TrustManagerFactory trustManagerFactory = null;
+		if ( sslSettings.isUseInsecureTrustManager() ) {
+			trustManagerFactory = InsecureTrustManagerFactory.INSTANCE; // Not secure, for testing only
+		} else {
+			trustManagerFactory = TrustManagerFactory.getInstance( sslSettings.getTrustManagerAlgo() );
+			trustManagerFactory.init(trustStore);
 		}
-	 */
-
+		
+		SslContext sslContext = SslContextBuilder.forClient()
+			    .keyManager(keyManagerFactory)
+			    .trustManager(trustManagerFactory)
+			    .build();
+		
+		ch.pipeline().addFirst("ssl", sslContext.newHandler(ch.alloc(), host, port));
+	}
+	
 	@Override
-	public boolean connect(String host, int port, final ITransportListener listener ) throws Exception {		
+	public boolean connect(String host, int port, SSLSettings sslSettings, final ITransportListener listener ) throws Exception {		
 		try {
 			Bootstrap b = new Bootstrap()
 					.group(workerGroup)
@@ -61,17 +81,14 @@ public class ClientSocketTransport implements IClientTransport {
 				@Override
 				public void initChannel(SocketChannel ch) throws Exception {
 					ChannelPipeline pipeline = ch.pipeline();
-					//		SSLEngine engine = SecureSocketSslContextFactory.getClientContext().createSSLEngine();
-					//		engine.setUseClientMode(true);
-					//    	pipeline.addLast(new DelimiterBasedFrameDecoder(8192, false, true, delimiter));
-					//		pipeline.addLast("ssl", new SslHandler(engine));
-
-					//    	pipeline.addLast(new LengthFieldBasedFrameDecoder(8192, 0, 0));
+					
+					if ( sslSettings!=null ) {
+						initializeSSL( host, port, sslSettings, ch );
+					}					
+					
 					pipeline.addLast(new FixLengthFieldBasedFrameDecoder( fixBeginString, fieldSep ));
 					pipeline.addLast(new ByteArrayDecoder());
 					pipeline.addLast(new ByteArrayEncoder());
-
-					// pipeline.addLast(new WebSocketServerProtocolHandler("/websocket"));
 
 					pipeline.addLast("myHandler", new SimpleChannelInboundHandler<byte[]>() {
 
@@ -111,59 +128,6 @@ public class ClientSocketTransport implements IClientTransport {
 	public boolean send(byte[] buffer) throws IOException {
 		if ( this.channel.isActive() && this.channel.isWritable() ) {
 			return this.channel.writeAndFlush(buffer).isSuccess();
-			/*
-			CountDownLatch latch = new CountDownLatch(1);
-			AtomicBoolean result = new AtomicBoolean(true);
-			
-			ChannelFuture future = this.channel.writeAndFlush(buffer);
-			future.addListener(new GenericFutureListener<DefaultChannelPromise>() {
-
-				@Override
-				public void operationComplete(DefaultChannelPromise channelFutures) throws Exception {
-					if (channelFutures.isDone()) {
-                        if (channelFutures.isSuccess()) {
-                        	
-                        } else {
-                            channelFutures.cause().printStackTrace();
-                            result.set(false);
-                        }
-                    } else if (channelFutures.isCancelled()) {
-                        channelFutures.cause().printStackTrace();
-                        result.set(false);
-                    }
-                    latch.countDown();
-				}
-				
-			});
-			*/
-			/*
-			future.addListener(new ChannelGroupFutureListener() {
-                @Override
-                public void operationComplete(ChannelGroupFuture channelFutures) throws Exception {
-                    if (channelFutures.isDone()) {
-                        if (channelFutures.isSuccess()) {
-                        	
-                        } else {
-                            channelFutures.cause().printStackTrace();
-                            result.set(false);
-                        }
-                    } else if (channelFutures.isCancelled()) {
-                        channelFutures.cause().printStackTrace();
-                        result.set(false);
-                    }
-                    latch.countDown();
-                }
-            });
-			*/
-			/*
-			try {
-				latch.await(1, TimeUnit.SECONDS);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				return false;
-			}
-			*/
-			//return result.get();
 		}
 		return false;
 	}

@@ -15,8 +15,10 @@ import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.IFixSessionListener;
+import com.litefix.models.session.SSLSettings;
 import com.litefix.modules.persistence.InMemoryPersistence;
 import com.litefix.modules.transport.IClientTransport;
+import com.litefix.modules.transport.ITransportListener;
 
 /**
  * https://www.fixtrading.org/standards/fix-session-testcases-online/ 

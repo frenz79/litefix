@@ -38,7 +38,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private final IPersistence<FixMessageEncoder> persistence;
 	private final ITransport transport;
 	private final FixMessageMapper fixMessageMapper;
-	private final SessionUtils sessionUtils;
+	private final IFixMessageValidator fixMessageValidator;
 	
 	public AbstractFixSession(ITransport transport, IPersistence<FixMessageEncoder> persistence, ClientFixSessionConfig sessionConfig) {
 		this.sessionConfig = sessionConfig;
@@ -46,7 +46,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 		this.persistence = persistence;
 		this.sessionSM = new SessionStateMachine();
 		this.fixMessageMapper = new FixMessageMapper();
-		this.sessionUtils = new SessionUtils( sessionConfig );
+		this.fixMessageValidator = new FixMessageValidator( sessionConfig );
 	}
 
 	public IFixMessageListener getMessageListener( String msgType ) {
@@ -95,14 +95,14 @@ public abstract class AbstractFixSession implements ITransportListener{
 	@Override
 	public void onMessage( byte[] buffer, int from, int len, long rcvNanoTime ) {
 		try {
-			if ( sessionUtils.isGarbled(buffer, from, len) ) {
+			if ( fixMessageValidator.isGarbled(buffer, from, len) ) {
 				return;
 			}
 			
 			System.out.println("IN: "+new String(buffer, from, len) );
 	
 			FixMessageDecoder decoder = newDecoder( buffer, from, len, rcvNanoTime );
-			sessionUtils.validateMessage( decoder, decoder.getMsgType() );
+			fixMessageValidator.isValidMessage( decoder, decoder.getMsgType() );
 						
 			if ( !sessionSM.isLoggedOn() ) {			
 				switch(decoder.getMsgType()) {
@@ -237,7 +237,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 		}
 
 		for ( FixMessageEncoder msg : msgList ) {
-			if ( sessionUtils.isAdministrativeMessage( msg.getMsgType()) || (retransmissionInterceptor!=null && !retransmissionInterceptor.canRetransmit(msg)) ) {
+			if ( fixMessageValidator.isAdministrativeMessage( msg.getMsgType()) || (retransmissionInterceptor!=null && !retransmissionInterceptor.canRetransmit(msg)) ) {
 				System.out.println("Skipping msg SeqNum:"+msg.getSeqNum());
 				sendAdminMessage( buildGapFillMessage(BeginSeqNo, msg.getSeqNum() ), BeginSeqNo);
 			} else {

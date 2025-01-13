@@ -71,7 +71,7 @@ public class ClientFixSession extends AbstractFixSession {
 			public void run() {
 				System.out.println("Trying reconnect..");
 				try {
-					if (!((IClientTransport)getTransport( )).connect( host, port, ClientFixSession.this )) {
+					if (!((IClientTransport)getTransport( )).connect( host, port, sessionConfig.getSslSettings(), ClientFixSession.this )) {
 						scheduleReconnect(reconnectWaitTime);
 					}
 				} catch (Exception e) {

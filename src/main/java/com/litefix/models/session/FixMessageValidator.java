@@ -7,14 +7,14 @@ import com.litefix.commons.utils.ByteUtils;
 import com.litefix.commons.utils.MathUtils;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 
-public class SessionUtils {
+public class FixMessageValidator implements IFixMessageValidator {
 
 	private static final int CRC_BODY_FIELD_SIZE = 7;
 	private final byte[] beginStringBytes;
 	private final byte   fieldSeparator;
 	private final ClientFixSessionConfig sessionConfig;
 	
-	public SessionUtils( ClientFixSessionConfig sessionConfig ) {
+	public FixMessageValidator( ClientFixSessionConfig sessionConfig ) {
 		this.beginStringBytes = sessionConfig.getDictionary().getBeginString().getBytes();
 		this.fieldSeparator = (byte)sessionConfig.getDictionary().getFieldSep();
 		this.sessionConfig = sessionConfig;
@@ -30,7 +30,8 @@ public class SessionUtils {
 	 * - MsgType(35) is not the third tag in a message. 
 	 * - Checksum(10) is not the last tag or contains an incorrect value.
 	 */		
-	boolean isGarbled( byte[] buffer, int from, int len ) {		
+	@Override
+	public boolean isGarbled( byte[] buffer, int from, int len ) {		
 		if ( buffer.length-from<beginStringBytes.length+2 
 			|| buffer[from]!='8'
 			|| buffer[from+1]!='='
@@ -80,7 +81,8 @@ public class SessionUtils {
 		return false;
 	}
 
-	boolean isAdministrativeMessage(String msgType) {		
+	@Override
+	public boolean isAdministrativeMessage(String msgType) {		
 		return msgType.equals("0") 
 				|| msgType.equals("A")
 				|| msgType.equals("1") 
@@ -91,7 +93,8 @@ public class SessionUtils {
 				;
 	}
 	
-	public boolean validateMessage( FixMessageDecoder decoder, String msgType ) throws SessionRejectMessageException{
+	@Override
+	public boolean isValidMessage( FixMessageDecoder decoder, String msgType ) throws SessionRejectMessageException{
 		int incomingMsgSeqNum = decoder.getSeqNum();
 		
 		if ( !decoder.isEqual(56, sessionConfig.getSenderCompIdBytes())) {

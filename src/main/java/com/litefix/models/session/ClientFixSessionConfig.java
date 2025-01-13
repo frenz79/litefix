@@ -1,5 +1,6 @@
 package com.litefix.models.session;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +21,9 @@ public class ClientFixSessionConfig {
 	private List<FixServerHost> serverHosts = new ArrayList<>();
 	
 	private FixMessageDictionary dictionary;
+	
+	private boolean enableSSL = false;
+	private SSLSettings sslSettings;
 	
 	public static class FixServerHost {
 		private final String name;
@@ -43,6 +47,12 @@ public class ClientFixSessionConfig {
 		public String toString() {
 			return "FixServerHost [name=" + name + ", port=" + port + "]";
 		}
+	}
+	
+	public ClientFixSessionConfig enableSSL(SSLSettings sslSettings) {
+		this.enableSSL = true;
+		this.sslSettings = sslSettings;
+		return this;
 	}
 	
 	public byte[] getSenderCompIdBytes() {
@@ -121,6 +131,14 @@ public class ClientFixSessionConfig {
 	public ClientFixSessionConfig addServer(String host, int port) {
 		this.serverHosts.add( new FixServerHost(host, port));
 		return this;
+	}
+
+	public SSLSettings getSslSettings() {
+		return sslSettings;
+	}
+
+	public void setSslSettings(SSLSettings sslSettings) {
+		this.sslSettings = sslSettings;
 	}	
 	
 }
