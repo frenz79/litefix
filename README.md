@@ -8,17 +8,24 @@ LiteFix wants to be easy to be used and as fast as possible.
 Following and example on how to create an initiator, starting the connection and logging-in to a server:
 
 ```
-		ClientFixSession session =(ClientFixSession)new FixSessionBuilder(serverHost, serverPort, listener )
-				.withBeginString(IFixConst.BEGIN_STRING_FIX44)
-				.withSenderCompId(senderCompId)
-				.withTargetCompId(targetCompId)
-				.withHbIntervalSec(30)
-				.withLogonTimeoutSec(5)
-				.withAutomaticLogonOnConnect(true)
-				.withAutomaticLogonOnLogout(true)
-				.withAutomaticReconnect(true, 500L)
-				.build();				
-		session.doConnectAndRetry( 1000L );
+		sessionCfg = new ClientFixSessionConfig()
+			.setSenderCompId( "TESTSEND1" )
+			.setTargetCompId( "TESTTARGET1" )
+			.setHeartBtInt( 1 )
+			.setResetSeqNumFlag('N')
+			.addServer("localhost", 5178)
+			.addServer("localhost", 5179)
+			.setDictionary( DefaultFix44Dictionary.init() );
+		
+		transport = new ClientSocketTransport( sessionCfg.getDictionary().getBeginString(), sessionCfg.getDictionary().getFieldSep() );		
+		persistence = new InMemoryPersistence<FixMessageEncoder>();
+
+		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
+		.withAllMessagesListener( this )
+		.withSessionListener( this )
+		.withRetransmissionInterceptor( null );
+		
+		session.doConnect( true, true );
 ```
 
 ### Sending a 35=D message
