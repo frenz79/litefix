@@ -21,9 +21,8 @@ Following and example on how to create an initiator, starting the connection and
 		persistence = new InMemoryPersistence<FixMessageEncoder>();
 
 		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
-		.withAllMessagesListener( this )
-		.withSessionListener( this )
-		.withRetransmissionInterceptor( null );
+		        .withAllMessagesListener( this )
+                        .withSessionListener( this );
 		
 		session.doConnect( true, true );
 ```
