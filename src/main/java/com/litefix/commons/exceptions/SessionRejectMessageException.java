@@ -1,6 +1,5 @@
 package com.litefix.commons.exceptions;
 
-import com.litefix.commons.exceptions.BusinessRejectMessageException.BUSINESS_REJECT_REASON;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 
 public class SessionRejectMessageException extends Exception {

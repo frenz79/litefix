@@ -1,16 +1,17 @@
 package com.litefix.models.session;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException.SESSION_REJECT_REASON;
+import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.modules.persistence.IPersistence;
@@ -19,14 +20,12 @@ import com.litefix.modules.transport.ITransportListener;
 
 public abstract class AbstractFixSession implements ITransportListener{
 
-	public static final DateTimeFormatter UTC_TIMESTAMP_SEC = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss");
-	public static final DateTimeFormatter UTC_TIMESTAMP_MILLIS = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
+	Logger LOGGER_MSG = LogManager.getLogger("SESSION_MESSAGES");
+	Logger LOGGER_SESSION = LogManager.getLogger("SESSION");
 
 	final SessionStateMachine sessionSM;
 
 	final ClientFixSessionConfig sessionConfig;
-
-	private static long SENDING_TIME_ACCURACY_THREASHOLD_MILLIS = 1000L;
 	
 	private long lastGapFillMessageWaitTime = 10_000l;
 	private long lastGapFillMessageSendTime = 0l;
@@ -60,13 +59,15 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private boolean isSeqGapDetected(FixMessageDecoder decoder) throws SessionRejectMessageException {
 		int lastRcvMessageSeq = persistence.getLastIncomingSeq();
 		
-		// Sequence numbers check
 		if ( lastRcvMessageSeq>=0 ) {
 			int expectedIncomingSeqNum = lastRcvMessageSeq+1;
 			if ( expectedIncomingSeqNum>decoder.getSeqNum() ) {
 				Boolean PossDupFlag = decoder.asBoolean(43);
 				if ( Boolean.TRUE.equals(PossDupFlag) ) {
-					System.out.println("Old or duplicated message detected, discarding message:"+decoder.getSeqNum()+". Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum());
+					LOGGER_SESSION.warn("Old or duplicated message detected, discarding message. Expecting:{} but received:{}",
+						expectedIncomingSeqNum,
+						decoder.getSeqNum()
+					);
 					return true;
 				}
 				throw new SessionRejectMessageException(
@@ -76,15 +77,20 @@ public abstract class AbstractFixSession implements ITransportListener{
 						SESSION_REJECT_REASON.INVALID_MSGTYPE_35,
 						String.format("MsgSeqNum too low, expecting %d but received %d",expectedIncomingSeqNum,decoder.getSeqNum()));				
 			} else if ( expectedIncomingSeqNum<decoder.getSeqNum() ) {
-				System.out.println("Gap detected, discarding message:"+decoder.getSeqNum()+". Expecting:"+expectedIncomingSeqNum+" but received:"+decoder.getSeqNum());
-
+				LOGGER_SESSION.warn("Gap detected, discarding message. Expecting:{} but received:{}",
+					expectedIncomingSeqNum,
+					decoder.getSeqNum()
+				);
 				long now = System.currentTimeMillis();
 				if (now-lastGapFillMessageSendTime>lastGapFillMessageWaitTime) {
-					System.out.println("sending ResendRequest FROM: "+expectedIncomingSeqNum+" TO: 0" );
+					LOGGER_SESSION.info("sending ResendRequest FROM:{} TO: 0", expectedIncomingSeqNum );
 					sendMessage( buildGapFillMessage( expectedIncomingSeqNum, 0 ));
 					lastGapFillMessageSendTime = now;
 				} else {
-					System.out.println("Gap detected. Already sent ResendRequest FROM: "+expectedIncomingSeqNum+" TO: "+decoder.getSeqNum()+". Not sending another.");
+					LOGGER_SESSION.warn("Gap detected. Already sent ResendRequest FROM:{} TO:{}. Not sending another.",
+						expectedIncomingSeqNum,
+						decoder.getSeqNum()
+					);
 				}
 				return true;
 			}
@@ -96,10 +102,11 @@ public abstract class AbstractFixSession implements ITransportListener{
 	public void onMessage( byte[] buffer, int from, int len, long rcvNanoTime ) {
 		try {
 			if ( fixMessageValidator.isGarbled(buffer, from, len) ) {
+				LOGGER_MSG.trace("Discarding garbled msg: {}", new String(buffer, from, len) );
 				return;
 			}
 			
-			System.out.println("IN: "+new String(buffer, from, len) );
+			LOGGER_MSG.info("RCV: {}", new String(buffer, from, len) );
 	
 			FixMessageDecoder decoder = newDecoder( buffer, from, len, rcvNanoTime );
 			fixMessageValidator.isValidMessage( decoder, decoder.getMsgType() );
@@ -144,11 +151,11 @@ public abstract class AbstractFixSession implements ITransportListener{
 			Boolean GapFillFlag = decoder.asBoolean(123);
 			if ( Boolean.TRUE.equals(GapFillFlag) ) {
 				// Gap fill
-				System.out.println("got GapFill to:"+NewSeqNo);
+				LOGGER_SESSION.info("got GapFill to:{}", NewSeqNo);
 				resetIncomingSequence( NewSeqNo );
 			} else {
 				// Reset mode
-				System.out.println("got SequenceReset to:"+NewSeqNo);
+				LOGGER_SESSION.info("got SequenceReset to:{}", NewSeqNo);
 				resetIncomingSequence( NewSeqNo );					
 			}				
 			return;
@@ -224,7 +231,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 					String.format("Invalid BeginSeqNo:%d and/or EndSeqNo:%d values",BeginSeqNo,EndSeqNo));
 		}
 
-		System.out.println("Processing Resend Request BeginSeqNo:"+BeginSeqNo+" to EndSeqNo:"+EndSeqNo);
+		LOGGER_SESSION.info("Processing Resend Request BeginSeqNo:{} to EndSeqNo:{}",BeginSeqNo,EndSeqNo);
 		
 		List<FixMessageEncoder> msgList = persistence.getAllOutgoingMessagesInRange(BeginSeqNo, EndSeqNo);
 		if ( msgList==null || msgList.isEmpty() ) {
@@ -238,10 +245,10 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 		for ( FixMessageEncoder msg : msgList ) {
 			if ( fixMessageValidator.isAdministrativeMessage( msg.getMsgType()) || (retransmissionInterceptor!=null && !retransmissionInterceptor.canRetransmit(msg)) ) {
-				System.out.println("Skipping msg SeqNum:"+msg.getSeqNum());
+				LOGGER_SESSION.info("Skipping msg SeqNum:{}", msg.getSeqNum());
 				sendAdminMessage( buildGapFillMessage(BeginSeqNo, msg.getSeqNum() ), BeginSeqNo);
 			} else {
-				System.out.println("Retransmitting SeqNum:"+msg.getSeqNum());
+				LOGGER_SESSION.info("Retransmitting SeqNum:{}", msg.getSeqNum());
 				sendDupMessage( buildRetransmissionMessage( msg ));		
 			}
 		}
@@ -277,16 +284,6 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	public FixMessageDecoder newDecoder(  byte[] buffer, int from, int len, long rcvNanoTime ) {
 		return FixMessageDecoder.newDecoder( sessionConfig.getDictionary(), buffer, from, len, rcvNanoTime );
-	}	
-
-	private static String getSendingTime() {
-		return LocalDateTime.now(ZoneOffset.UTC).format( UTC_TIMESTAMP_MILLIS );
-	}
-
-	// YYYYMMDD-HH:MM:SS.sss
-	LocalDateTime toUTCTimestamp( String val ) {
-		DateTimeFormatter formatter = (val.charAt(val.length()-4)=='.')?UTC_TIMESTAMP_MILLIS:UTC_TIMESTAMP_SEC;
-		return LocalDateTime.parse(val, formatter);
 	}
 
 	private void sendAdminMessage( FixMessageEncoder enc, int seqNum ) {
@@ -300,7 +297,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 	
 	private void sendDupMessage( FixMessageEncoder enc ) {
 		try {
-			byte[] outMsg = enc.set( 52, getSendingTime() ).forceBuild();
+			byte[] outMsg = enc.set( 52, TimeUtils.getSendingTime() ).forceBuild();
 			send( outMsg );
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -321,10 +318,10 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private boolean send( byte[] outMsg ) {
 		try {
 			if ( transport.send( outMsg ) ) {
-				System.out.println("OUT: "+new String(outMsg) );
+				LOGGER_MSG.info("SND: {}", new String(outMsg) );
 				return true;
 			}
-			System.out.println("OUT: WRITE FAILED");
+			LOGGER_MSG.error("SND FAILED: {}", new String(outMsg) );
 			return false;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -337,7 +334,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 				.set( 49, sessionConfig.getSenderCompId() )
 				.set( 56, sessionConfig.getTargetCompId() )
 				.set( 34, (seqNum>0)?seqNum:persistence.getAndIncrementOutgoingSeq() )
-				.set( 52, getSendingTime() );
+				.set( 52, TimeUtils.getSendingTime() );
 	}
 
 	synchronized void resetIncomingSequence(int newSeqNo) {
@@ -351,10 +348,6 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	void resetOutgoingSequence() {
 		persistence.resetOutgoingSequence();
-	}
-	
-	private void purgeOutgoingMessage(FixMessageEncoder enc) {
-		// TODO Auto-generated method stub
 	}
 	
 	private FixMessageEncoder buildGapFillMessage( int BeginSeqNo, int EndSeqNo ) {

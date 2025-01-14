@@ -5,6 +5,7 @@ import java.util.Arrays;
 
 import com.litefix.caches.NumbersCache;
 import com.litefix.commons.utils.ByteUtils;
+import com.litefix.commons.utils.TimeUtils;
 
 public class FixMessageDecoder extends AbstractEncoderDecoder {
 
@@ -39,7 +40,7 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	public boolean isEqual( int fieldId, byte[] buffCompare ) {
-		byte[] field = NumbersCache.toBytes(fieldId);
+		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = msgBuffFrom+msgBuffLen;
 		char fieldSep = dictionary.getFieldSep();
@@ -98,7 +99,7 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	public LocalDateTime asTimestamp( int fieldId ) {
-		return toUTCTimestamp(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		return TimeUtils.toUTCTimestamp(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
 	}
 	
 	public byte[] getBytes( int fieldId ) {
@@ -106,7 +107,7 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	private static final Boolean getTagValueAsBoolean( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
-		byte[] field = NumbersCache.toBytes(fieldId);
+		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = startOffset+len;	
 		
@@ -140,7 +141,7 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	private static final Integer getTagValueAsInt( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
-		byte[] field = NumbersCache.toBytes(fieldId);
+		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = startOffset+len;	
 		
@@ -174,7 +175,7 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	private static final String getTagValue( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
-		byte[] field = NumbersCache.toBytes(fieldId);
+		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = startOffset+len;
 		

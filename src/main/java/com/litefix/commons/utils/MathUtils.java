@@ -2,6 +2,15 @@ package com.litefix.commons.utils;
 
 public class MathUtils {
 
+	public static int calcChecksum( final StringBuilder strBld ) {
+		int checksum = 0;
+		for ( int i=0; i<strBld.length(); i++) {
+			checksum += strBld.charAt(i);
+		}
+		checksum  &= 0xFF; // better than sum % 256 since it avoids overflow issues
+		return checksum;
+	}
+	
 	public static final int calcChecksum( byte[] target, int start, int end ) {	
 		int checksum = 0;
 		// it's a bit faster decrementing

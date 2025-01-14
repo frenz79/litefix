@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.litefix.caches.NumbersCache;
+import com.litefix.commons.utils.MathUtils;
 import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;
 import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageFieldTemplate;
 import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageTemplate;
@@ -122,7 +123,7 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	}
 	
 	private void setChecksum( final StringBuilder strBld ) {
-		int checksum = calcChecksum(strBld);		
+		int checksum = MathUtils.calcChecksum(strBld);		
 		strBld.append("10")
 			.append('=')
 			.append(NumbersCache.toPaddedString(checksum))

@@ -4,6 +4,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.ConsoleAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
+
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.utils.FixUUID;
@@ -50,6 +56,20 @@ public class SimpleSSLFixClient implements IFixMessageListener, IFixSessionListe
 	}
 	
 	public void start() throws Exception {
+		LoggerContext lc = (LoggerContext) LogManager.getContext(true);
+		lc.getRootLogger().setLevel(Level.TRACE);
+		
+		ConsoleAppender ca  = ConsoleAppender.newBuilder()
+				.setName("ca")
+				.setConfiguration(lc.getConfiguration())
+				.setLayout(PatternLayout.newBuilder().setPattern("%-5p %d  [%t] %C{2} (%F:%L) - %m%n").build())
+				.build();
+		ca.start();
+		
+	    lc.getConfiguration().addAppender(ca);
+	    lc.getRootLogger().addAppender(ca);
+	    lc.updateLoggers();
+	    
 		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
 		.withAllMessagesListener( this )
 		.withSessionListener( this )

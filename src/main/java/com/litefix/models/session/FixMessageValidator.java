@@ -9,6 +9,8 @@ import com.litefix.models.fixmessage.FixMessageDecoder;
 
 public class FixMessageValidator implements IFixMessageValidator {
 
+	private static long SENDING_TIME_ACCURACY_THREASHOLD_MILLIS = 1000L;
+	
 	private static final int CRC_BODY_FIELD_SIZE = 7;
 	private final byte[] beginStringBytes;
 	private final byte   fieldSeparator;

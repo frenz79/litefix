@@ -25,7 +25,7 @@ public class NumbersCache {
 		}
 	}
 	
-	public static byte[] toBytes( int v ) {
+	public static byte[] toStringBytes( int v ) {
 		return (v<CACHE_SIZE)?int2bytes[v]:String.valueOf(v).getBytes();
 	}
 	

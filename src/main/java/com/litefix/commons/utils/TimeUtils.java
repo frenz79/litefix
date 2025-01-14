@@ -6,14 +6,20 @@ import java.time.format.DateTimeFormatter;
 
 public class TimeUtils {
 	
-	// 20221216-12:21:31.683
-	private static final DateTimeFormatter SENDING_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
+	public static final DateTimeFormatter UTC_TIMESTAMP_SEC = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss");
+	public static final DateTimeFormatter UTC_TIMESTAMP_MILLIS = DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm:ss.SSS");
 	
 	public static String getSendingTime() {
-		return LocalDateTime.now(ZoneOffset.UTC).format( SENDING_TIME_FORMATTER );
+		return LocalDateTime.now(ZoneOffset.UTC).format( UTC_TIMESTAMP_MILLIS );
 	}
 	
 	public static LocalDateTime fromSendingTime( String sendingTime ) {
-		return LocalDateTime.parse(sendingTime, SENDING_TIME_FORMATTER);
+		return LocalDateTime.parse(sendingTime, UTC_TIMESTAMP_MILLIS);
+	}
+	
+	// YYYYMMDD-HH:MM:SS.sss
+	public static LocalDateTime toUTCTimestamp( String val ) {
+		DateTimeFormatter formatter = (val.charAt(val.length()-4)=='.')?UTC_TIMESTAMP_MILLIS:UTC_TIMESTAMP_SEC;
+		return LocalDateTime.parse(val, formatter);
 	}
 }
