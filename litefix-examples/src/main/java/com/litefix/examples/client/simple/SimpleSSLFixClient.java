@@ -1,34 +1,26 @@
-package com.litefix;
+package com.litefix.examples.client.simple;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.ConsoleAppender;
-import org.apache.logging.log4j.core.layout.PatternLayout;
-
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.TimeUtils;
+import com.litefix.examples.client.AbstractClient;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
-import com.litefix.models.session.IFixMessageListener;
-import com.litefix.models.session.IFixSessionListener;
-import com.litefix.models.session.IRetransmissionInterceptor;
 import com.litefix.models.session.SSLSettings;
 import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.persistence.InMemoryPersistence;
 import com.litefix.modules.transport.ClientSocketTransport;
 import com.litefix.modules.transport.IClientTransport;
 
-public class SimpleSSLFixClient implements IFixMessageListener, IFixSessionListener, IRetransmissionInterceptor {
+public class SimpleSSLFixClient extends AbstractClient {
 
 	private ClientFixSessionConfig sessionCfg;
 	private IClientTransport transport;
@@ -43,8 +35,8 @@ public class SimpleSSLFixClient implements IFixMessageListener, IFixSessionListe
 			.setResetSeqNumFlag('Y')
 			.addServer("localhost", 6179)
 			.enableSSL( new SSLSettings()
-				.setKeyStoreCert( new FileInputStream("D:\\SourceCode\\Incubator\\litefix\\src\\test\\resources\\ssl\\host.jks" ))
-				.setTrustStoreCert( new FileInputStream("D:\\SourceCode\\Incubator\\litefix\\src\\test\\resources\\ssl\\host.jks" ))
+				.setKeyStoreCert( new FileInputStream("D:\\SourceCode\\Incubator\\litefix\\litefix-examples\\src\\main\\resources\\ssl\\echo_server\\host.jks" ))
+				.setTrustStoreCert( new FileInputStream("D:\\SourceCode\\Incubator\\litefix\\litefix-examples\\src\\main\\resources\\ssl\\echo_server\\host.jks" ))
 				.setKeyStorePwd("password")
 				.setTrustStorePwd("password")
 				.setUseInsecureTrustManager(true)
@@ -56,19 +48,7 @@ public class SimpleSSLFixClient implements IFixMessageListener, IFixSessionListe
 	}
 	
 	public void start() throws Exception {
-		LoggerContext lc = (LoggerContext) LogManager.getContext(true);
-		lc.getRootLogger().setLevel(Level.TRACE);
-		
-		ConsoleAppender ca  = ConsoleAppender.newBuilder()
-				.setName("ca")
-				.setConfiguration(lc.getConfiguration())
-				.setLayout(PatternLayout.newBuilder().setPattern("%-5p %d  [%t] %C{2} (%F:%L) - %m%n").build())
-				.build();
-		ca.start();
-		
-	    lc.getConfiguration().addAppender(ca);
-	    lc.getRootLogger().addAppender(ca);
-	    lc.updateLoggers();
+		initLogging();
 	    
 		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
 		.withAllMessagesListener( this )
@@ -77,7 +57,7 @@ public class SimpleSSLFixClient implements IFixMessageListener, IFixSessionListe
 		
 		session.doConnect( true, true );
 	}	
-	
+
 	public static void main( String[] args ) throws Exception {
 		new SimpleSSLFixClient().start();
 	}
@@ -189,10 +169,4 @@ public class SimpleSSLFixClient implements IFixMessageListener, IFixSessionListe
 		}
 	}
 	*/
-
-	@Override
-	public boolean canRetransmit(FixMessageEncoder msg) {
-		// Always retransmit
-		return true;
-	}
 }

@@ -1,83 +1,49 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.litefix</groupId>
-	<artifactId>litefix</artifactId>
+	<artifactId>litefix-parent</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Lite FIX</name>
+	<name>Lite FIX (Parent)</name>
 
+  	<packaging>pom</packaging>
+  
 	<properties>
 	    <maven.compiler.source>20</maven.compiler.source>
 	    <maven.compiler.target>20</maven.compiler.target>
 	</properties>
 	
-	<dependencies>
-		
-		<!-- https://mvnrepository.com/artifact/io.netty/netty-all 
-		<dependency>
-		    <groupId>io.netty</groupId>
-		    <artifactId>netty-all</artifactId>
-		    <version>4.2.0.RC1</version>
-		</dependency>
-		-->
-		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
-		<dependency>
-		    <groupId>org.apache.logging.log4j</groupId>
-		    <artifactId>log4j-core</artifactId>
-		    <version>3.0.0-beta3</version>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/io.netty/netty-handler -->
-		<dependency>
-		    <groupId>io.netty</groupId>
-		    <artifactId>netty-handler</artifactId>
-		    <version>4.2.0.RC1</version>
-		</dependency>
-		
-		<!-- TEST -->
-		<dependency>
-			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.2.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.junit.platform</groupId>
-			<artifactId>junit-platform-runner</artifactId>
-			<version>1.2.0</version>
-			<scope>test</scope>
-		</dependency>
-		
-	</dependencies>	
+	<modules>
+		<module>litefix-core</module>
+		<module>litefix-examples</module>
+	</modules>
 	
+	<dependencyManagement>
+		<dependencies>
+			
+			<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-core</artifactId>
+				<version>3.0.0-beta3</version>
+			</dependency>
 
-	<build>
-		 <extensions>
-	      <extension>
-	        <groupId>kr.motd.maven</groupId>
-	        <artifactId>os-maven-plugin</artifactId>
-	        <version>1.6.1</version>
-	      </extension>
-    	</extensions>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.22.0</version>
-				<dependencies>
-					<dependency>
-						<groupId>org.junit.platform</groupId>
-						<artifactId>junit-platform-surefire-provider</artifactId>
-						<version>1.2.0</version>
-					</dependency>
-				</dependencies>
-				<configuration>
-					<additionalClasspathElements>
-						<additionalClasspathElement>src/test/java/</additionalClasspathElement>
-					</additionalClasspathElements>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+			<!-- TEST -->
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-engine</artifactId>
+				<version>5.2.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-runner</artifactId>
+				<version>1.2.0</version>
+				<scope>test</scope>
+			</dependency>
+			
+		</dependencies>	
+	</dependencyManagement>
+
+	
 </project>

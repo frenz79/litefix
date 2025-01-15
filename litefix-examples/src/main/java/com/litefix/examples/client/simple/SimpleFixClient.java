@@ -1,4 +1,4 @@
-package com.litefix;
+package com.litefix.examples.client.simple;
 
 import java.util.concurrent.TimeUnit;
 
@@ -6,20 +6,18 @@ import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.utils.FixUUID;
 import com.litefix.commons.utils.TimeUtils;
+import com.litefix.examples.client.AbstractClient;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
-import com.litefix.models.session.IFixMessageListener;
-import com.litefix.models.session.IFixSessionListener;
-import com.litefix.models.session.IRetransmissionInterceptor;
 import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.persistence.InMemoryPersistence;
 import com.litefix.modules.transport.ClientSocketTransport;
 import com.litefix.modules.transport.IClientTransport;
 
-public class SimpleFixClient implements IFixMessageListener, IFixSessionListener, IRetransmissionInterceptor {
+public class SimpleFixClient extends AbstractClient {
 
 	private ClientFixSessionConfig sessionCfg;
 	private IClientTransport transport;
@@ -41,6 +39,8 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 	}
 	
 	public void start() throws Exception {
+		initLogging();
+		
 		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
 		.withAllMessagesListener( this )
 		.withSessionListener( this )
@@ -99,71 +99,9 @@ public class SimpleFixClient implements IFixMessageListener, IFixSessionListener
 		} else {
 			System.out.println("logged out");
 		}
-		
-		/*if ( result ) {
-			for (int i=0; i<10000; i++ ) {
-				long startTime = System.nanoTime();
-				FixMessageEncoder enc = session.newEncoder( "D" )
-					.set(55, "IT0000000000")	// Symbol
-					.set(11, FixUUID.random() ) // ClOrdID
-				//	.set(15, "EUR" ) // Currency
-					.set(21, '1' )// HandlInst
-					.set(38, 1000 )// OrderQty
-					.set(40, '1' )// OrdType - market
-					.set(54, '1' )// Side
-					.set(60, TimeUtils.getSendingTime() )// TransactTime
-				;
-				session.sendMessage( enc );
-				long now = System.nanoTime();
-				System.out.println("["+TimeUnit.NANOSECONDS.toMicros(now-startTime)+"]micros -> send done");
-			}
-		}
-		*/
 	}
 	
-	public void handleQuote( FixMessageDecoder decoder ) {
-		
-		
+	public void handleQuote( FixMessageDecoder decoder ) {	
 	}
-	/*
-	
-	public static void handleQuote( FixMessage msg ) {
-		String symbol = msg.getStringValue( IFixConst.Symbol );
-		String streamID = msg.getStringValue( new FixTag(10000));
-		String bookID = msg.getStringValue( IFixConst.QuoteID );
-	
-		System.out.println("streamID:  " + streamID + " |   bookID: " + bookID);
-		
-		handleLeg( msg, msg.getFixGroup( new FixTag(10555) ) ); // XCDNoNearBands
-		handleLeg( msg, msg.getFixGroup( new FixTag(10556) ) ); // XCDNoFarBands
-		System.out.println("---------------------------------------------------------------");
-	}
-	
-	private static void handleLeg( FixMessage msg, FixGroup group ) {
-		for ( int i=0; i<group.getCounter(); i++ ) {
-			String LegBidPx = msg.getStringValue(group, new FixTag(681));
-			String LegOfferPx = msg.getStringValue(group, new FixTag(684));
-			String XCDLegBidSpotRate = msg.getStringValue(group, new FixTag(10001));
-			String XCDLegBidFwdPoints = msg.getStringValue(group, new FixTag(10002));
-			String XCDLegOfferSpotRate = msg.getStringValue(group, new FixTag(10003));
-			String XCDLegOfferFwdPoints = msg.getStringValue(group, new FixTag(10004));
-			String XCDLegBidQuoteType = msg.getStringValue(group, new FixTag(10005));
-			String XCDLegOfferQuoteType = msg.getStringValue(group, new FixTag(10006));
-			String XCDLegBidQty = msg.getStringValue(group, new FixTag(10007));
-			String XCDLegOfferQty = msg.getStringValue(group, new FixTag(10008));
-			String XCDLegBidFwdMargin = msg.getStringValue(group, new FixTag(10013));
-			String XCDLegBidSpotMargin = msg.getStringValue(group, new FixTag(10014));
-			String XCDLegOfferFwdMargin = msg.getStringValue(group, new FixTag(10015));
-			String XCDLegOfferSpotMargin = msg.getStringValue(group, new FixTag(10016));
-			
-			System.out.println(LegBidPx + " :  " + XCDLegBidQty + " | "+  XCDLegOfferQty + " : " + LegOfferPx);
-		}
-	}
-	*/
 
-	@Override
-	public boolean canRetransmit(FixMessageEncoder msg) {
-		// Always retransmit
-		return true;
-	}
 }
