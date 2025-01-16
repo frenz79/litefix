@@ -86,4 +86,9 @@ public class InMemoryPersistence<T extends Serializable> implements IPersistence
 	public void close() {
 		// TODO Auto-generated method stub	
 	}
+
+	@Override
+	public int decrementOutgoingSeq() {
+		return this.outgoingSeqNum.decrementAndGet();
+	}
 }

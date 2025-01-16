@@ -41,24 +41,25 @@ public class ClientSocketTransport implements IClientTransport {
 	}
 	
 	private void initializeSSL(String host, int port, SSLSettings sslSettings, SocketChannel ch ) throws Exception {	
-		KeyStore keyStore = KeyStore.getInstance( sslSettings.getKeyStoreType() );
+		KeyStore keyStore = KeyStore.getInstance( "PKCS12" );//sslSettings.getKeyStoreType() );
 		keyStore.load(sslSettings.getKeyStoreCert(), sslSettings.getKeyStorePwd().toCharArray());
 		
 		KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance( sslSettings.getKeyManagerFactoryAlgo() );
 		keyManagerFactory.init(keyStore, sslSettings.getKeyStorePwd().toCharArray());
 
-		KeyStore trustStore = KeyStore.getInstance( sslSettings.getTrustStoreType() );
-		trustStore.load(sslSettings.getTrustStoreCert(), sslSettings.getTrustStorePwd().toCharArray());
+	//	KeyStore trustStore = KeyStore.getInstance( "JKS" );//sslSettings.getTrustStoreType() );
+	//	trustStore.load(sslSettings.getTrustStoreCert(), sslSettings.getTrustStorePwd().toCharArray());
 		
 		TrustManagerFactory trustManagerFactory = null;
 		if ( sslSettings.isUseInsecureTrustManager() ) {
 			trustManagerFactory = InsecureTrustManagerFactory.INSTANCE; // Not secure, for testing only
 		} else {
-			trustManagerFactory = TrustManagerFactory.getInstance( sslSettings.getTrustManagerAlgo() );
-			trustManagerFactory.init(trustStore);
+		//	trustManagerFactory = TrustManagerFactory.getInstance( sslSettings.getTrustManagerAlgo() );
+		//	trustManagerFactory.init(trustStore);
 		}
 		
 		SslContext sslContext = SslContextBuilder.forClient()
+				//.protocols("TLSv1.3", "TLSv.1.2")
 			    .keyManager(keyManagerFactory)
 			    .trustManager(trustManagerFactory)
 			    .build();

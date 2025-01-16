@@ -53,9 +53,11 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 		return msgFields.get( NumbersCache.toString(id)).getValue();
 	}
 	
-	
 	public FixMessageEncoder set( int id, String val ) {
 		return set( NumbersCache.toString(id), val);
+	}
+	public FixMessageEncoder setIfAbsent( int id, String val ) {
+		return setIfAbsent( NumbersCache.toString(id), val);
 	}
 	
 	public FixMessageEncoder set( int id, char val ) {
@@ -80,6 +82,12 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	public FixMessageEncoder set( String id, Object val ) {	
 		FixMessageFieldTemplate template = findFieldInTemplates(id);
 		this.msgFields.put(id, new FixMessageField(template, val));
+		return this;
+	}
+	
+	public FixMessageEncoder setIfAbsent( String id, Object val ) {	
+		FixMessageFieldTemplate template = findFieldInTemplates(id);
+		this.msgFields.putIfAbsent(id, new FixMessageField(template, val));
 		return this;
 	}
 	

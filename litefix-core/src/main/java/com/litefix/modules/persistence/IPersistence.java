@@ -5,6 +5,8 @@ import java.util.List;
 
 public interface IPersistence<T extends Serializable> {
 
+	int decrementOutgoingSeq();
+	
 	int getAndIncrementOutgoingSeq();
 
 	void purgeOutgoingMessage(int sequence);

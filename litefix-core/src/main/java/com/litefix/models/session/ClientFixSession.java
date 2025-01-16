@@ -13,15 +13,16 @@ public class ClientFixSession extends AbstractFixSession {
 	
 	private boolean autoLogin = true;
 	private boolean autoReconnect = true;
-	private long reconnectWaitTime = 500l; 
-	private long reloginWaitTime = 500l; 
+	private long reconnectWaitTime = 1000l; 
+	private long reloginWaitTime = 1000l; 
 	
 	public ClientFixSession(IClientTransport transport, IPersistence<FixMessageEncoder> persistence, ClientFixSessionConfig sessionConfig ) {
 		super(transport, persistence, sessionConfig);
+		LOGGER_SESSION.info("ClientFixSession initialized with sessionConfig:{}", sessionConfig);
 	}
 	
 	public AbstractFixSession doConnect( ) throws Exception {
-		return doConnect( false, false);
+		return doConnect( false, false );
 	}
 
 	public AbstractFixSession doConnect( boolean autoLogin, boolean autoReconnect ) throws Exception {
@@ -69,39 +70,48 @@ public class ClientFixSession extends AbstractFixSession {
 		
 		TimerTask task = new TimerTask() {
 			public void run() {
-				System.out.println("Trying reconnect..");
+				LOGGER_SESSION.info("Trying connect to {}:{}", host, port);
 				try {
 					if (!((IClientTransport)getTransport( )).connect( host, port, sessionConfig.getSslSettings(), ClientFixSession.this )) {
 						scheduleReconnect(reconnectWaitTime);
 					}
 				} catch (Exception e) {
-					System.out.println("Connect failed:"+e.getMessage());
+					LOGGER_SESSION.error("Connect failed:{}",e.getMessage());
 					scheduleReconnect(reconnectWaitTime);
 				}
 			}
 		};
-		Timer timer = new Timer("ReconnectTimer-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
+		Timer timer = new Timer("ConnectTimer-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
 		timer.schedule(task, delay);
 	}
 	
 	private void scheduleRelogin( long delay ) {
 		TimerTask task = new TimerTask() {
 			public void run() {
-				System.out.println("Trying relogin..");
+				LOGGER_SESSION.warn("Trying login..");
 				try {
 					doLogon();
 				} catch (Exception e) {
-					e.printStackTrace();
+					LOGGER_SESSION.error("Login failed:{}",e.getMessage());
 				}
 			}
 		};
-		Timer timer = new Timer("ReloginTimer-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
+		Timer timer = new Timer("LoginTimer-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
 		timer.schedule(task, delay);
 	}
 
 	// IClientTransportListener
 	@Override
 	public void onError(Throwable cause) {
-		System.out.println("onError:"+cause);
+		LOGGER_SESSION.error("onError:{}",cause.getMessage());
+	}
+
+	@Override
+	FixMessageEncoder beforeSend(FixMessageEncoder encoder) {
+		IFixMessageListener listener = getMessageListener(encoder.getMsgType());
+		if ( listener!=null ) {
+			return listener.beforeMessageSnd(encoder);
+		}
+		return encoder;
 	}
 }

@@ -9,9 +9,9 @@ public class SSLSettings {
 	private String trustManagerAlgo = TrustManagerFactory.getDefaultAlgorithm();
 	private String keyManagerFactoryAlgo = KeyManagerFactory.getDefaultAlgorithm();
 	
-	private boolean useInsecureTrustManager = false;
-	private String keyStoreType = "JKS";
-	private String trustStoreType = "JKS";
+	private boolean useInsecureTrustManager = true;
+	private String keyStoreType = "PCKS12";
+	private String trustStoreType = "PCKS12";
 	
 	private String keyStorePwd;
 	private String trustStorePwd;

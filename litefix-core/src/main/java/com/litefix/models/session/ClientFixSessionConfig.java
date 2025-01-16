@@ -1,7 +1,7 @@
 package com.litefix.models.session;
 
-import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.litefix.models.fixmessage.FixMessageDictionary;
@@ -139,6 +139,15 @@ public class ClientFixSessionConfig {
 
 	public void setSslSettings(SSLSettings sslSettings) {
 		this.sslSettings = sslSettings;
+	}
+
+	@Override
+	public String toString() {
+		return "ClientFixSessionConfig [senderCompId=" + senderCompId + ", targetCompId=" + targetCompId
+				+ ", memSenderCompIdBytes=" + Arrays.toString(memSenderCompIdBytes) + ", memTargetCompIdBytes="
+				+ Arrays.toString(memTargetCompIdBytes) + ", heartBtInt=" + heartBtInt + ", encryptMethod="
+				+ encryptMethod + ", resetSeqNumFlag=" + resetSeqNumFlag + ", serverHosts=" + serverHosts
+				+ ", dictionary=" + dictionary + ", enableSSL=" + enableSSL + ", sslSettings=" + sslSettings + "]";
 	}	
 	
 }

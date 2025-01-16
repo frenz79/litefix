@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,6 +42,20 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private final ITransport transport;
 	private final FixMessageMapper fixMessageMapper;
 	private final IFixMessageValidator fixMessageValidator;
+	
+	private final ReadWriteLock persistenceOutLock = new ReentrantReadWriteLock(false);
+	private final Lock rOutLock = persistenceOutLock.readLock();
+	private final Lock wOutLock = persistenceOutLock.writeLock();
+	
+	private final void acquireLock( Lock lock ) {
+		try {
+			if (!lock.tryLock(500, TimeUnit.MILLISECONDS) ) {
+				throw new RuntimeException(String.format("Thread:%s cannot acquire lock:'%s'. Deadlock?", Thread.currentThread(),lock));
+			}
+		} catch (InterruptedException e) {
+			throw new RuntimeException(String.format("Cannot acquire lock:'%s'. InterruptedException?",lock));
+		}
+	}
 	
 	public AbstractFixSession(ITransport transport, IPersistence<FixMessageEncoder> persistence, ClientFixSessionConfig sessionConfig) {
 		this.sessionConfig = sessionConfig;
@@ -141,7 +159,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 			sendMessage( buildLogoutMessage(ex2) );
 			disconnect();			
 		} catch (Exception e) {
-			e.printStackTrace();	
+			LOGGER_SESSION.error("Exception Handled in onMessage().",e);	
 		}
 	}
 	
@@ -174,7 +192,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 		default:
 			IFixMessageListener listener = getMessageListener(decoder.getMsgType());
 			if ( listener!=null ) {
-				listener.onMessage(decoder);
+				listener.onMessageRcv(decoder);
 			} else {
 				throw new SessionRejectMessageException(
 						decoder.getSeqNum(),
@@ -285,33 +303,45 @@ public abstract class AbstractFixSession implements ITransportListener{
 	public FixMessageDecoder newDecoder(  byte[] buffer, int from, int len, long rcvNanoTime ) {
 		return FixMessageDecoder.newDecoder( sessionConfig.getDictionary(), buffer, from, len, rcvNanoTime );
 	}
-
-	private void sendAdminMessage( FixMessageEncoder enc, int seqNum ) {
-		try {
-			byte[] outMsg = fillHeaderFields(enc, seqNum).build();
-			send( outMsg );
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
 	
 	private void sendDupMessage( FixMessageEncoder enc ) {
 		try {
 			byte[] outMsg = enc.set( 52, TimeUtils.getSendingTime() ).forceBuild();
 			send( outMsg );
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER_SESSION.error("Exception Handled in onMessage().",e);
 		}
 	}
 	
-	public void sendMessage( FixMessageEncoder enc ) {		
+	private void sendAdminMessage( FixMessageEncoder enc, int seqNum ) {
 		try {
-			byte[] outMsg = fillHeaderFields(enc, -1).build();
-			if ( send(outMsg) ) {
-				persistence.storeOutgoingMessage(enc.getSeqNum(), enc);
+			byte[] outMsg = fillHeaderFields(enc, seqNum).build();
+			send( outMsg );
+		} catch (Exception e) {
+			LOGGER_SESSION.error("Exception Handled in sendAdminMessage().",e);
+		}
+	}
+	
+	// To be overridden to put some data just before CRC calculation and send operation.
+	// Used for example in crypto exchanges like Binance to set RawData header field.
+	abstract FixMessageEncoder beforeSend( FixMessageEncoder enc );
+	
+	public void sendMessage( FixMessageEncoder enc ) {	
+		acquireLock( wOutLock );
+		try {
+			FixMessageEncoder toBeSent = beforeSend( fillHeaderFields(enc, -1) );
+			if ( toBeSent!=null ) {
+				byte[] outMsg = toBeSent.build();
+				if ( send(outMsg) ) {
+					persistence.storeOutgoingMessage(enc.getSeqNum(), enc);
+				}
+			} else {
+				persistence.decrementOutgoingSeq();
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER_SESSION.error("Exception Handled in sendMessage().",e);
+		} finally {
+			wOutLock.unlock();
 		}
 	}
 	
@@ -324,17 +354,22 @@ public abstract class AbstractFixSession implements ITransportListener{
 			LOGGER_MSG.error("SND FAILED: {}", new String(outMsg) );
 			return false;
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER_SESSION.error("Exception Handled in send().",e);
 			return false;
 		}
 	}
 	
-	private final FixMessageEncoder fillHeaderFields( FixMessageEncoder encoder, int seqNum  ) {	
-		return encoder
-				.set( 49, sessionConfig.getSenderCompId() )
-				.set( 56, sessionConfig.getTargetCompId() )
-				.set( 34, (seqNum>0)?seqNum:persistence.getAndIncrementOutgoingSeq() )
-				.set( 52, TimeUtils.getSendingTime() );
+	private final FixMessageEncoder fillHeaderFields( FixMessageEncoder encoder, int seqNum  ) throws InterruptedException {
+		acquireLock( rOutLock );
+		try {
+			return encoder
+					.set( 49, sessionConfig.getSenderCompId() )
+					.set( 56, sessionConfig.getTargetCompId() )
+					.set( 34, (seqNum>0)?seqNum:persistence.getAndIncrementOutgoingSeq() )
+					.setIfAbsent( 52, TimeUtils.getSendingTime() );
+		} finally {
+			rOutLock.unlock();
+		}
 	}
 
 	synchronized void resetIncomingSequence(int newSeqNo) {
@@ -347,7 +382,12 @@ public abstract class AbstractFixSession implements ITransportListener{
 	}	
 
 	void resetOutgoingSequence() {
-		persistence.resetOutgoingSequence();
+		acquireLock( rOutLock );
+		try {
+			persistence.resetOutgoingSequence();
+		} finally {
+			rOutLock.unlock();
+		}
 	}
 	
 	private FixMessageEncoder buildGapFillMessage( int BeginSeqNo, int EndSeqNo ) {
@@ -395,5 +435,9 @@ public abstract class AbstractFixSession implements ITransportListener{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public ClientFixSessionConfig getSessionConfig() {
+		return sessionConfig;
 	}
 }
