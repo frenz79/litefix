@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -47,6 +48,8 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private final Lock rOutLock = persistenceOutLock.readLock();
 	private final Lock wOutLock = persistenceOutLock.writeLock();
 	
+	final Timer taskScheduler;
+	
 	private final void acquireLock( Lock lock ) {
 		try {
 			if (!lock.tryLock(500, TimeUnit.MILLISECONDS) ) {
@@ -64,6 +67,8 @@ public abstract class AbstractFixSession implements ITransportListener{
 		this.sessionSM = new SessionStateMachine();
 		this.fixMessageMapper = new FixMessageMapper();
 		this.fixMessageValidator = new FixMessageValidator( sessionConfig );
+		
+		this.taskScheduler = new Timer("TaskScheduler-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
 	}
 
 	public IFixMessageListener getMessageListener( String msgType ) {
@@ -430,10 +435,9 @@ public abstract class AbstractFixSession implements ITransportListener{
 	
 	public void disconnect() {
 		try {
-			transport.stop();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			transport.disconnect();
+		} catch (Exception e) {
+			LOGGER_SESSION.error("Exception Handled in disconnect().",e);
 		}
 	}
 

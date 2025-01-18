@@ -1,6 +1,5 @@
 package com.litefix.models.session;
 
-import java.util.Timer;
 import java.util.TimerTask;
 
 import com.litefix.models.fixmessage.FixMessageEncoder;
@@ -28,7 +27,7 @@ public class ClientFixSession extends AbstractFixSession {
 	public AbstractFixSession doConnect( boolean autoLogin, boolean autoReconnect ) throws Exception {
 		this.autoLogin = autoLogin;
 		this.autoReconnect = autoReconnect;
-		scheduleReconnect( 0l );
+		scheduleConnect( 0l );
 		return this;
 	}
 
@@ -56,39 +55,36 @@ public class ClientFixSession extends AbstractFixSession {
 		getSessionListener().onConnect(status);
 
 		if ( !status && autoReconnect ) {
-			scheduleReconnect(reconnectWaitTime);
+			scheduleConnect(reconnectWaitTime);
 		}
 		if ( status && autoLogin ) {
-			scheduleRelogin(reloginWaitTime);
+			scheduleLogin(reloginWaitTime);
 		}
 	}
 
-	private void scheduleReconnect( long delay ) {
-		this.fixServerSiteId = (++fixServerSiteId)%sessionConfig.getServerHosts().size();
-		String host = sessionConfig.getServerHosts().get(fixServerSiteId).getName();
-		int port = sessionConfig.getServerHosts().get(fixServerSiteId).getPort();
-		
+	private void scheduleConnect( long delay ) {
 		TimerTask task = new TimerTask() {
 			public void run() {
-				LOGGER_SESSION.info("Trying connect to {}:{}", host, port);
+				fixServerSiteId = (++fixServerSiteId)%sessionConfig.getServerHosts().size();
+				String host = sessionConfig.getServerHosts().get(fixServerSiteId).getName();
+				int port = sessionConfig.getServerHosts().get(fixServerSiteId).getPort();
+				
+				LOGGER_SESSION.info("Trying to connect to {}:{}", host, port);
 				try {
-					if (!((IClientTransport)getTransport( )).connect( host, port, sessionConfig.getSslSettings(), ClientFixSession.this )) {
-						scheduleReconnect(reconnectWaitTime);
-					}
+					((IClientTransport)getTransport( )).connect( host, port, sessionConfig.getSslSettings(), ClientFixSession.this );
 				} catch (Exception e) {
 					LOGGER_SESSION.error("Connect failed:{}",e.getMessage());
-					scheduleReconnect(reconnectWaitTime);
+					scheduleConnect(reconnectWaitTime);
 				}
 			}
 		};
-		Timer timer = new Timer("ConnectTimer-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
-		timer.schedule(task, delay);
+		this.taskScheduler.schedule(task, delay);
 	}
 	
-	private void scheduleRelogin( long delay ) {
+	private void scheduleLogin( long delay ) {
 		TimerTask task = new TimerTask() {
 			public void run() {
-				LOGGER_SESSION.warn("Trying login..");
+				LOGGER_SESSION.info("Trying to login..");
 				try {
 					doLogon();
 				} catch (Exception e) {
@@ -96,8 +92,7 @@ public class ClientFixSession extends AbstractFixSession {
 				}
 			}
 		};
-		Timer timer = new Timer("LoginTimer-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
-		timer.schedule(task, delay);
+		this.taskScheduler.schedule(task, delay);
 	}
 
 	// IClientTransportListener

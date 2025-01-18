@@ -4,8 +4,11 @@ import java.io.IOException;
 
 public interface ITransport {
 	
-	void stop() throws IOException;
 
-	boolean send(byte[] buffer) throws IOException;
+	void disconnect() throws Exception;
+	
+	void shutdown() throws IOException;
+
+	boolean send(byte[] buffer) throws Exception;
 
 }
