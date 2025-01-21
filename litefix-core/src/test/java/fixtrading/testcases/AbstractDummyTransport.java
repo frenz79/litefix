@@ -19,18 +19,22 @@ public abstract class AbstractDummyTransport implements IClientTransport {
 	}
 	
 	@Override
-	public void stop() throws IOException {
+	public void shutdown() throws IOException {
 		new Thread(() -> { listener.onConnect(false);}).start();
 	}
 
+	@Override
+	public void disconnect() throws Exception {
+		new Thread(() -> { listener.onConnect(false);}).start();
+	}
+	
 	void respond( String msg ) {
 		new Thread(() -> {listener.onMessage(msg.getBytes(), 0, msg.getBytes().length, 0);}).start();
 	}
 
 	@Override
-	public boolean connect(String host, int port, SSLSettings sslSettings, ITransportListener listener) throws Exception {
+	public void connect(String host, int port, SSLSettings sslSettings, ITransportListener listener) throws Exception {
 		this.listener = listener;
 		listener.onConnect(true);
-		return true;
 	}
 }
