@@ -3,11 +3,9 @@ package com.litefix.examples.client;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.ConsoleAppender;
 import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.layout.PatternLayout;
 
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.session.IFixMessageListener;
@@ -25,7 +23,7 @@ public abstract class AbstractClient implements IFixMessageListener, IFixSession
 	protected void initLogging() {
 		LoggerContext context = (LoggerContext) LogManager.getContext(false);
 		Configuration config = context.getConfiguration();
-		
+		/*
 		ConsoleAppender consoleAppender  = ConsoleAppender.newBuilder()
 				.setName("ConsoleAppender")
 				.setTarget(ConsoleAppender.Target.SYSTEM_OUT)
@@ -33,7 +31,7 @@ public abstract class AbstractClient implements IFixMessageListener, IFixSession
 				.setLayout(PatternLayout.newBuilder().setPattern("%-5p %d  [%t] %C{2} (%F:%L) - %m%n").build())
 				.build();
 		consoleAppender.start();
-		
+		*/
 		AppenderRef ref = AppenderRef.createAppenderRef("ConsoleAppender", null, null);
         AppenderRef[] refs = new AppenderRef[]{ref};
         
@@ -44,7 +42,7 @@ public abstract class AbstractClient implements IFixMessageListener, IFixSession
         		.setConfig(config)
         		.setRefs(refs)
         		.build();
-        loggerConfig.addAppender(consoleAppender, null, null);
+       // loggerConfig.addAppender(consoleAppender, null, null);
         
         config.addLogger("SESSION_MESSAGES", loggerConfig);
         config.addLogger("SESSION", loggerConfig);

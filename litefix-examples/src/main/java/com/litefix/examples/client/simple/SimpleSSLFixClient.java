@@ -48,6 +48,8 @@ public class SimpleSSLFixClient extends AbstractClient {
 	}
 	
 	public void start() throws Exception {
+		System.setProperty("javax.net.debug", "ssl,handshake");
+		
 		initLogging();
 	    
 		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
@@ -64,7 +66,7 @@ public class SimpleSSLFixClient extends AbstractClient {
 	
 	// IFixMessageListener
 	@Override
-	public void onMessage(FixMessageDecoder decoder) throws BusinessRejectMessageException {
+	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException {
 		switch (decoder.getMsgType()) {
 		case "S" : handleQuote(decoder); break;
 		

@@ -55,7 +55,7 @@ public class SimpleFixClient extends AbstractClient {
 	
 	// IFixMessageListener
 	@Override
-	public void onMessage(FixMessageDecoder decoder) throws BusinessRejectMessageException {
+	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException {
 		switch (decoder.getMsgType()) {
 		case "S" : handleQuote(decoder); break;
 		
