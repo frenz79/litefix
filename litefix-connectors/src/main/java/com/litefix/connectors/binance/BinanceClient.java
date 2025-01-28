@@ -1,42 +1,37 @@
 package com.litefix.connectors.binance;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;
 
 public class BinanceClient {
-	/**
-	 * TEST:
-	 *   - PRIVATE_KEY_FILE_TEST
-	 *   - HOST_MARKET_DATA_TEST
-	 *   - API_KEY_TEST2
-	 *   - SSL_CERT_TEST
-	 *   
-	 * PROD:
-	 *   - PRIVATE_KEY_FILE
-	 *   - HOST_MARKET_DATA
-	 *   - API_KEY
-	 *   - SSL_CERT
-	 * 
-	 */
+		
+	private static final String HOST_MARKET_DATA_PROD = "fix-md.binance.com";
+	private static final String HOST_MARKET_DATA_TEST = "fix-md.testnet.binance.vision";
 	
-	private static final String HOST_MARKET_DATA = "fix-md.binance.com";
-//	private static final String HOST_MARKET_DATA_TEST = "fix-md.testnet.binance.vision";
+	private String getBinanceHost( String env ) {
+		if ("prod".equalsIgnoreCase(env)){
+			return HOST_MARKET_DATA_PROD;
+		}
+		return HOST_MARKET_DATA_TEST;
+	}
 	
-	private static final String PRIVATE_KEY_FILE = "\\resources\\ssl\\binance\\prv-key.pem";
-//	private static final String PRIVATE_KEY_FILE_TEST = "\\resources\\ssl\\binance\\prv-key-test.pem;
-	
-	private static final String API_KEY = "Ta5lqCvSvTOBYA858YQweZzyOgqbuAci6CkxhEsMCVMEnjtrMd6KXd9fbEccF233";
-	
-	private static final String API_KEY_TEST = "v43WpvjS7B9ovwGbFr4AL58RlvUiSrSq4UYpjKug96a7SBYbBDleslYBuwpmjNFa";
-	
-	private static final String SSL_CERT_TEST = "\\resources\\ssl\\binance\\binance.vision.jks";
-	private static final String SSL_CERT = "\\resources\\ssl\\binance\\binance.jks";
-	
+	private static final String SSL_CERT_PROD = "src\\main\\resources\\ssl\\binance\\binance.jks";
+	private static final String SSL_CERT_TEST = "src\\main\\resources\\ssl\\binance\\binance.vision.jks";
+		
+	private InputStream getBinanceSSLCert( String env ) throws FileNotFoundException {
+		if ("prod".equalsIgnoreCase(env)){
+			return new FileInputStream( SSL_CERT_PROD );
+		}
+		return new FileInputStream( SSL_CERT_TEST );
+	}
+		
 	private final BinanceFixClient fixClient;
 		
-	public BinanceClient( String binanceEnv, String apiKey, String privateKey ){
+	public BinanceClient( String binanceEnv, String apiKey, String privateKey ) throws Exception{
 		this.fixClient = new BinanceFixClient();
 		
 		ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig()
@@ -44,15 +39,17 @@ public class BinanceClient {
 				.setTargetCompId( "SPOT" )
 				.setHeartBtInt( 30 )
 				.setResetSeqNumFlag('Y')
-				.addServer(HOST_MARKET_DATA, 9000)
+				.addServer(getBinanceHost(binanceEnv), 9000)
 				.enableSSL( new SSLSettings()
-					.setKeyStoreCert( new FileInputStream(SSL_CERT))
-					.setTrustStoreCert( new FileInputStream(SSL_CERT))
+					.setKeyStoreCert( getBinanceSSLCert(binanceEnv) )
+					.setTrustStoreCert( getBinanceSSLCert(binanceEnv) )
 					.setKeyStorePwd("password")
 					.setTrustStorePwd("password")
 					.setUseInsecureTrustManager(true)
 				)
 				.setDictionary( BinanceFixDictionary.init() );
+		
+		this.fixClient.start(privateKey, apiKey, sessionCfg);
 	}
 	
 	public static void main( String[] args ) throws Exception {
@@ -107,6 +104,6 @@ public class BinanceClient {
         System.out.println("apiKey: " + apiKey);
         System.out.println("privateKey: " + privateKey);
         
-		new BinanceFixClient().start();
+		new BinanceClient( env, apiKey, privateKey );
 	}
 }

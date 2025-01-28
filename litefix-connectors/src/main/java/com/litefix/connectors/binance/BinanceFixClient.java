@@ -24,7 +24,7 @@ public class BinanceFixClient extends AbstractConnector {
 	
 	public void start( String privateKey, String apiKey, ClientFixSessionConfig sessionCfg ) throws Exception {
 		initLogging();
-	    
+	    this.apiKey = apiKey;
 		this.privateKey = getPrivateKey(privateKey, "Ed25519");
 			
 		IClientTransport	transport = new ClientSocketTransport( sessionCfg.getDictionary().getBeginString(), sessionCfg.getDictionary().getFieldSep() );		
