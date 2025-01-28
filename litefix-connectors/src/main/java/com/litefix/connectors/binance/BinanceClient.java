@@ -4,6 +4,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 
+import com.litefix.commons.exceptions.BusinessRejectMessageException;
+import com.litefix.commons.exceptions.SessionRejectMessageException;
+import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;
 
@@ -32,7 +35,13 @@ public class BinanceClient {
 	private final BinanceFixClient fixClient;
 		
 	public BinanceClient( String binanceEnv, String apiKey, String privateKey ) throws Exception{
-		this.fixClient = new BinanceFixClient();
+		this.fixClient = new BinanceFixClient() {
+			@Override
+			public void onLogon(FixMessageDecoder decoder, boolean result)
+					throws SessionRejectMessageException, BusinessRejectMessageException {
+				subscribeBook("BTCUSDT");
+			}
+		};
 		
 		ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig()
 				.setSenderCompId( "SPOTTEST" )
