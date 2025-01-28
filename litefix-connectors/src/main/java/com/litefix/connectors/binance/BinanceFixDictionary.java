@@ -3,6 +3,7 @@ package com.litefix.connectors.binance;
 import com.litefix.models.fixmessage.FixMessageDictionary;
 import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;
 import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageFieldTemplate;
+import com.litefix.models.fixmessage.RegExpFixFieldValidator;
 
 public class BinanceFixDictionary {
 
@@ -17,8 +18,8 @@ public class BinanceFixDictionary {
 			.addHeader(8, "BeginString", true, FieldType.RESERVED)
 			.addHeader(9, "BodyLen", true, FieldType.RESERVED)
 			.addHeader(35, "MsgType", true, FieldType.STRING)
-			.addHeader(49, "SenderCompID", true, FieldType.STRING)
-			.addHeader(56, "TargetCompID", true, FieldType.STRING)
+			.addHeader(49, "SenderCompID", true, FieldType.STRING, new RegExpFixFieldValidator("^[a-zA-Z0-9-_]{1,8}$"))
+			.addHeader(56, "TargetCompID", true, FieldType.STRING, new RegExpFixFieldValidator("^[a-zA-Z0-9-_]{1,8}$"))
 			
 			.addHeader(115, "OnBehalfOfCompID", false, FieldType.STRING)
 			.addHeader(128, "DeliverToCompID", false, FieldType.STRING)

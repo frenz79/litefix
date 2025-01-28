@@ -1,6 +1,5 @@
 package com.litefix.models.session;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +17,7 @@ import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException.SESSION_REJECT_REASON;
 import com.litefix.commons.utils.TimeUtils;
 import com.litefix.models.fixmessage.FixMessageDecoder;
+import com.litefix.models.fixmessage.FixMessageDictionary.FixMessageFieldTemplate;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.transport.ITransport;
@@ -64,13 +64,30 @@ public abstract class AbstractFixSession implements ITransportListener{
 		this.sessionConfig = sessionConfig;
 		this.transport = transport;
 		this.persistence = persistence;
+		
+		validateSessionConfig();
+		
 		this.sessionSM = new SessionStateMachine();
 		this.fixMessageMapper = new FixMessageMapper();
 		this.fixMessageValidator = new FixMessageValidator( sessionConfig );
-		
 		this.taskScheduler = new Timer("TaskScheduler-"+sessionConfig.getSenderCompId()+"->"+sessionConfig.getTargetCompId());
 	}
 
+	private boolean validateSessionConfig() {
+		FixMessageFieldTemplate SenderCompID = sessionConfig.getDictionary().getHeaderField(49);
+		if ( !SenderCompID.getValidator().isValid(SenderCompID.getType(), sessionConfig.getSenderCompId())){
+			throw new RuntimeException(String.format("Invalid field value:%s for tag:49. Applied validator:%s"
+				, sessionConfig.getSenderCompId(), SenderCompID.getValidator()));
+		}
+		
+		FixMessageFieldTemplate TargetCompID = sessionConfig.getDictionary().getHeaderField(56);
+		if ( !TargetCompID.getValidator().isValid(TargetCompID.getType(), sessionConfig.getTargetCompId())){
+			throw new RuntimeException(String.format("Invalid field value:%s for tag:56. Applied validator:%s"
+				, sessionConfig.getTargetCompId(), TargetCompID.getValidator()));
+		}
+		return true;
+	}
+	
 	public IFixMessageListener getMessageListener( String msgType ) {
 		IFixMessageListener l = msgListeners.get(msgType);
 		if ( l==null ) {

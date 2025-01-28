@@ -1,3 +1,0 @@
- keytool -importcert -alias mycert -file binance.vision.der -keystore binance.vision.jks
- 
- wget fix-md.testnet.binance.vision:9000 -O ./testnet.binance.vision.pem

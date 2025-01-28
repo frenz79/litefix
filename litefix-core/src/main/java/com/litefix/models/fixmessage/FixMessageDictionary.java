@@ -38,6 +38,10 @@ public class FixMessageDictionary {
 		return header.values();
 	}
 	
+	public FixMessageFieldTemplate getHeaderField( int id ) {
+		return header.get(NumbersCache.toString(id));
+	}
+	
 	public FixMessageFieldTemplate getHeaderField( String id ) {
 		return header.get(id);
 	}
@@ -72,31 +76,37 @@ public class FixMessageDictionary {
 	}
 	
 	public FixMessageDictionary addHeader( int id, String name, boolean mandatory, FieldType type) {
-		return addHeader(id, name, mandatory, type, null);
+		return addHeader(id, name, mandatory, type, NopFixFieldValidator.DEFAULT );
 	}
-
-	public FixMessageDictionary addHeader( int id, String name, boolean mandatory, FieldType type, Object defaultVal ) {
-		this.header.put(NumbersCache.toString(id), new FixMessageFieldTemplate(id, name, mandatory, type).setValue(defaultVal));
+	
+	public FixMessageDictionary addHeader( int id, String name, boolean mandatory, FieldType type, IFixFieldValidator validator) {
+		this.header.put(NumbersCache.toString(id), new FixMessageFieldTemplate(id, name, mandatory, type, validator));
 		return this;
 	}
-		
+
 	public static class FixMessageFieldTemplate {
 		private final int id;
 		private final String name;
 		private final boolean mandatory;
 		private final FieldType type;
 		private Object value;
+		private final IFixFieldValidator validator;
 		
 		public FixMessageFieldTemplate(int id, boolean mandatory, FieldType type) {
-			this(id, "", mandatory, type);
+			this(id, "", mandatory, type, NopFixFieldValidator.DEFAULT);
 		}
 		
 		public FixMessageFieldTemplate(int id, String name, boolean mandatory, FieldType type) {
+			this(id, name, mandatory, type, NopFixFieldValidator.DEFAULT);
+		}
+		
+		public FixMessageFieldTemplate(int id, String name, boolean mandatory, FieldType type, IFixFieldValidator validator) {
 			super();
 			this.id = id;
 			this.name = name;
 			this.mandatory = mandatory;
 			this.type = type;
+			this.validator = validator;
 		}
 
 		public int getId() {
@@ -122,6 +132,10 @@ public class FixMessageDictionary {
 		public FixMessageFieldTemplate setValue(Object value) {
 			this.value = value;
 			return this;
+		}
+
+		public IFixFieldValidator getValidator() {
+			return validator;
 		}
 	}
 	

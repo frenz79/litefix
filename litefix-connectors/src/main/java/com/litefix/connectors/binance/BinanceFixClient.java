@@ -1,7 +1,6 @@
 package com.litefix.connectors.binance;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Signature;
@@ -12,56 +11,21 @@ import com.litefix.connectors.AbstractConnector;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
-import com.litefix.models.session.SSLSettings;
 import com.litefix.modules.persistence.IPersistence;
 import com.litefix.modules.persistence.InMemoryPersistence;
 import com.litefix.modules.transport.ClientSocketTransport;
 import com.litefix.modules.transport.IClientTransport;
 
 public class BinanceFixClient extends AbstractConnector {
-
-	private static final String HOST_MARKET_DATA = "fix-md.binance.com";
-	private static final String HOST_MARKET_DATA_TEST = "fix-md.testnet.binance.vision";
-	
-	private static final String PRIVATE_KEY_FILE = "D:\\SourceCode\\Incubator\\litefix\\litefix-connectors\\src\\main\\resources\\ssl\\binance\\Private_key.txt";
-	
-	private static final String PRIVATE_KEY_FILE_TEST = "D:\\SourceCode\\Incubator\\litefix\\litefix-connectors\\src\\main\\resources\\ssl\\binance\\test-prv-key.pem";
-	
-	private static final String API_KEY = "Ta5lqCvSvTOBYA858YQweZzyOgqbuAci6CkxhEsMCVMEnjtrMd6KXd9fbEccF233";
-	private static final String API_KEY_TEST = "ZlCcXB71oXDqDqqKjzVATt6ePfAEOpQHuOx0MbioHwaZLMtVouyrPySdhxjZ3Ao0";
-	
-	private static final String API_KEY_TEST2 = "v43WpvjS7B9ovwGbFr4AL58RlvUiSrSq4UYpjKug96a7SBYbBDleslYBuwpmjNFa";
-	
-	private static final String SSL_CERT_TEST = "D:\\SourceCode\\Incubator\\litefix\\litefix-connectors\\src\\main\\resources\\ssl\\binance\\binance.vision.jks";
-	private static final String SSL_CERT = "D:\\SourceCode\\Incubator\\litefix\\litefix-connectors\\src\\main\\resources\\ssl\\binance\\binance.jks";
 	
 	private ClientFixSession session;
 	private PrivateKey privateKey;
+	private String apiKey;
 	
-	public static void main( String[] args ) throws Exception {
-		System.setProperty("javax.net.debug", "all");
-		new BinanceFixClient().start();
-	}
-	
-	public void start() throws Exception {
+	public void start( String privateKey, String apiKey, ClientFixSessionConfig sessionCfg ) throws Exception {
 		initLogging();
 	    
-		this.privateKey = getPrivateKey(new File(PRIVATE_KEY_FILE_TEST), "Ed25519");
-				
-		ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig()
-				.setSenderCompId( "SPOT-SESSION-TEST" )
-				.setTargetCompId( "SPOT" )
-				.setHeartBtInt( 30 )
-				.setResetSeqNumFlag('Y')
-				.addServer(HOST_MARKET_DATA_TEST, 9000)
-				.enableSSL( new SSLSettings()
-					.setKeyStoreCert( new FileInputStream(SSL_CERT_TEST))
-					.setTrustStoreCert( new FileInputStream(SSL_CERT_TEST))
-					.setKeyStorePwd("password")
-					.setTrustStorePwd("password")
-					.setUseInsecureTrustManager(true)
-				)
-				.setDictionary( BinanceFixDictionary.init() );
+		this.privateKey = getPrivateKey(privateKey, "Ed25519");
 			
 		IClientTransport	transport = new ClientSocketTransport( sessionCfg.getDictionary().getBeginString(), sessionCfg.getDictionary().getFieldSep() );		
 		IPersistence<FixMessageEncoder>	persistence = new InMemoryPersistence<FixMessageEncoder>();
@@ -100,7 +64,7 @@ public class BinanceFixClient extends AbstractConnector {
 		try {
 			char fieldSep = session.getSessionConfig().getDictionary().getFieldSep();
 			String sendingTime = TimeUtils.getSendingTime();
-			String Username  = API_KEY_TEST2;
+			String Username  = apiKey;
 			String RawData = calculateSignature(
 				encoder.getMsgType() + fieldSep +
 				session.getSessionConfig().getSenderCompId() + fieldSep +

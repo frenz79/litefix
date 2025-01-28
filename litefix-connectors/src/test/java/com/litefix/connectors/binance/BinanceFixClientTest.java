@@ -1,10 +1,13 @@
 package com.litefix.connectors.binance;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
+import com.litefix.models.session.ClientFixSession;
+import com.litefix.models.session.ClientFixSessionConfig;
+import com.litefix.models.session.SSLSettings;
 
 class BinanceFixClientTest {
 
@@ -29,5 +32,23 @@ class BinanceFixClientTest {
 		assertEquals("4MHXelVVcpkdwuLbl6n73HQUXUf1dse2PCgT1DYqW9w8AVZ1RACFGM+5UdlGPrQHrgtS3CvsRURC1oj73j8gCA==", signature);
 	}
 
-	
+	@Test
+	void validateSessionConfig() throws Exception {
+		ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig()
+				.setSenderCompId( "SPOTTEST" )
+				.setTargetCompId( "SPOT" )
+				.setHeartBtInt( 30 )
+				.setResetSeqNumFlag('Y')
+				.addServer("dummy", 9000)
+				.enableSSL( new SSLSettings()
+		//			.setKeyStoreCert( new FileInputStream(SSL_CERT_TEST))
+		//			.setTrustStoreCert( new FileInputStream(SSL_CERT_TEST))
+					.setKeyStorePwd("password")
+					.setTrustStorePwd("password")
+					.setUseInsecureTrustManager(true)
+				)
+				.setDictionary( BinanceFixDictionary.init() );
+		
+		ClientFixSession session = (ClientFixSession) new ClientFixSession( null, null, sessionCfg );
+	}
 }

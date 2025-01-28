@@ -1,3 +1,0 @@
------BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAe++VAyrMm5b6m0bE8qo0ePBndXozh80Mrt8ALTADZfo=
------END PUBLIC KEY-----
