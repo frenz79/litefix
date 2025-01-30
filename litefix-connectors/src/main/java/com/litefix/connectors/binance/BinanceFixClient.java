@@ -66,6 +66,9 @@ public class BinanceFixClient extends AbstractConnector {
 	 **/
 	@Override
 	public FixMessageEncoder beforeMessageSnd(FixMessageEncoder encoder) {
+		if ( !encoder.getMsgType().equals("A") ) {
+			return encoder;
+		}
 		try {
 			char fieldSep = session.getSessionConfig().getDictionary().getFieldSep();
 			String sendingTime = TimeUtils.getSendingTime();
@@ -83,7 +86,6 @@ public class BinanceFixClient extends AbstractConnector {
 				.set(96, RawData)
 				.set(95, RawData.length())
 				.set(25035, MessageHandling)
-				.set(98, EncryptMethod)
 				.set(52, sendingTime); 
 			
 		} catch (Exception e) {
@@ -93,27 +95,8 @@ public class BinanceFixClient extends AbstractConnector {
 	}
 	
 	// MarketDataSnapshot<W>
+	// RCV: 8=FIX.4.49=000021335=W49=SPOT56=SPOTTEST34=252=20250130-18:59:55.088145262=338a6a9f-cd55-42fb-a7c0-85aae0602a6455=BTCUSDT25044=10762840268=2269=0270=105427.98000000271=0.00276000269=1270=105427.99000000271=0.0036600010=182
 
-	/*
-	 * 262 MDReqID STRING Y ID of this request 
-	 * 263 SubscriptionRequestType CHAR Y Subscription Request Type. Possible values:
-	 * 	  1 - SUBSCRIBE
-	 *    2 - UNSUBSCRIBE 
-	 * 264 1 INT N Subscription depth.
-	 * Possible values:
-	 *    1 - Book Ticker subscription
-	 *    2-5000 - Diff. Depth Stream 
-	 * 266 AggregatedBook NUMINGROUP N 
-	 * Possible values:
-	 *    Y - one book entry per side per price 
-	 * 146 NoRelatedSym NUMINGROUP N Number of
-	 * symbols =>55 Symbol STRING Y 267 NoMDEntryTypes NUMINGROUP N Number of entry
-	 * types =>269 MDEntryType CHAR Y Possible values:
-	 * 
-	 * 0 - BID
-	 * 1 - OFFER
-	 * 2 - TRADE
-	 */	
 	
 	/*
 	# Subscriptions
@@ -124,15 +107,18 @@ public class BinanceFixClient extends AbstractConnector {
 	8=FIX.4.4|9=127|35=V|49=TRADER1|56=SPOT|34=7|52=20241122-06:17:14.443822|262=DEPTH_STREAM|263=1|264=10|266=Y|146=1|55=BTCUSDT|267=2|269=0|269=1|10=111|
 	*/
 	public BinanceFixClient subscribeBook(String symbol) {
-		session.newEncoder("W")
+		FixMessageEncoder bookSub = session.newEncoder("V")
 		.set(262, UUID.randomUUID().toString() )	// MDReqID
 		.set(263, '1')	// SubscriptionRequestType
 		.set(264, 1) // MarketDepth
 		.set(146, 1) // NoRelatedSym
 		.set(55, symbol)
-		//.set(symbol, symbol) // NoMDEntryTypes
-		// MDEntryType
+		.set(267, 2) // NoMDEntryTypes
+		.set(267, 269, '0') // bid
+		.set(267, 269, '1') // offer
 		;
+		
+		session.sendMessage(bookSub);
 		return this;
 	}
 }

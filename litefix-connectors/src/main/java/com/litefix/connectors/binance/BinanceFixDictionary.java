@@ -51,14 +51,19 @@ public class BinanceFixDictionary {
 		//	.addHeader(52, "HopCompID", true, FieldType.UTC_TIMESTAMP)
 		//	.addHeader(52, "HopSendingTime", true, FieldType.UTC_TIMESTAMP)
 		//	.addHeader(52, "HopRefID", true, FieldType.UTC_TIMESTAMP)
+			
+
 		;
 		
 		// Logon
 		dictionary.register("A")
-			.addField( 98, "EncryptMethod", true, FieldType.INTEGER, 0)
-			.addField(108, "HeartBtInt", true, FieldType.INTEGER)
+			.addField(553, "Username", false, FieldType.STRING)
+			.addField(554, "Password", false, FieldType.STRING)
 			.addField( 95, "RawDataLength", false, FieldType.INTEGER)
 			.addField( 96, "RawData", false, FieldType.STRING)
+			.addField(25035, "MessageHandling", true, FieldType.INTEGER)
+			.addField(108, "HeartBtInt", true, FieldType.INTEGER)
+			.addField( 98, "EncryptMethod", true, FieldType.INTEGER,0)
 			.addField(141, "ResetSeqNumFlag", false, FieldType.INTEGER)
 			.addField(789, "NextExpectedMsgSeqNum", false, FieldType.INTEGER)
 			.addField(383, "MaxMessageSize", false, FieldType.INTEGER)
@@ -67,9 +72,8 @@ public class BinanceFixDictionary {
 					new FixMessageFieldTemplate(385, "MsgDirection", false, FieldType.CHAR)
 				})
 			.addField(464, "TestMessageIndicator", false, FieldType.BOOLEAN)
-			.addField(553, "Username", false, FieldType.STRING)
-			.addField(554, "Password", false, FieldType.STRING)
-			.addField(25035, "MessageHandling", true, FieldType.INTEGER)
+
+			
 		;
 		// Logout
 		dictionary.register("5")
@@ -114,7 +118,22 @@ public class BinanceFixDictionary {
 			.addField(  58, "Text", false, FieldType.STRING)
 			.addField( 354, "EncodedTextLen", false, FieldType.STRING)
 			.addField( 355, "EncodedText", false, FieldType.STRING)
-		;	
+		;
+		
+		// MarketDataRequest
+		dictionary.register("V")
+			.addField(  262, "MDReqID", true, FieldType.STRING)	
+			.addField(  263, "SubscriptionRequestType", true, FieldType.CHAR)
+			.addField(  264, "MarketDepth", false, FieldType.INTEGER)
+			//.addField(  266, "AggregatedBook", false, FieldType.CHAR)
+			.addGroup(146, "NoRelatedSym", false, new FixMessageFieldTemplate[] {
+				new FixMessageFieldTemplate(55, "Symbol", true, FieldType.STRING)
+			})
+			.addGroup(267, "NoMDEntryTypes", false, new FixMessageFieldTemplate[] {
+				new FixMessageFieldTemplate(269, "MDEntryType", true, FieldType.CHAR)
+			})
+		;
+		
 		// New Order - Single
 		dictionary.register("D")
 			.addField(  11, "ClOrdID", true, FieldType.STRING)

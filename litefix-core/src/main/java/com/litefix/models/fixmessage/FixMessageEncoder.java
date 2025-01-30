@@ -1,7 +1,9 @@
 package com.litefix.models.fixmessage;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.litefix.caches.NumbersCache;
@@ -64,6 +66,10 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 		return set( NumbersCache.toString(id), Character.valueOf(val));
 	}
 	
+	public FixMessageEncoder set( int gid, int id, char val ) {
+		return set( NumbersCache.toString(gid), NumbersCache.toString(id), Character.valueOf(val));
+	}
+	
 	public FixMessageEncoder set( int id, boolean val ) {
 		return set( NumbersCache.toString(id), Boolean.valueOf(val));
 	}
@@ -81,7 +87,18 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	
 	public FixMessageEncoder set( String id, Object val ) {	
 		FixMessageFieldTemplate template = findFieldInTemplates(id);
-		this.msgFields.put(id, new FixMessageField(template, val));
+		if ( template.getType().equals(FieldType.GROUP_SIZE) ) {
+			this.msgFields.put(id, new FixMessageGroupField(template, (Integer)val));
+		} else {
+			this.msgFields.put(id, new FixMessageField(template, val));
+		}
+		return this;
+	}
+	
+	public FixMessageEncoder set( String gid, String id, Object val ) {	
+		FixMessageGroupField groupField = (FixMessageGroupField) this.msgFields.get( gid );
+		FixMessageFieldTemplate template = findFieldInTemplates(id);
+		groupField.add(new FixMessageField(template, val));
 		return this;
 	}
 	
@@ -151,7 +168,20 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 				strBld.append(fieldId).append('=');
 				
 				if ( fieldValue.getValue()!=null ) {
-					strBld.append( String.valueOf(fieldValue.getValue()) );
+					if ( FieldType.GROUP_SIZE.equals( fieldTemplate.getType()) ) {
+						List<FixMessageField> repValues = (List<FixMessageField>)(((FixMessageGroupField)fieldValue).getValue());
+						strBld.append( ((FixMessageGroupField)fieldValue).getSize() );
+						strBld.append(dictionary.getFieldSep());
+						
+						for ( FixMessageField repVal : repValues  ) {
+							strBld.append(repVal.getId()).append('=').append(String.valueOf(repVal.getValue())).append(dictionary.getFieldSep());
+						}
+						
+						strBld.setLength(  strBld.length()-1 );
+						
+					} else  {
+						strBld.append( String.valueOf(fieldValue.getValue()) );
+					}
 				} else {
 					if ( fieldTemplate.isMandatory() && fieldTemplate.getValue()==null ) {
 						throw new RuntimeException(
@@ -173,6 +203,25 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 		}
 	}
 
+	static class FixMessageGroupField extends FixMessageField {
+		private final int size;
+		
+		public FixMessageGroupField( FixMessageFieldTemplate template, int size ) {
+			super( template, null );
+			List<FixMessageField> values = new ArrayList<>(size);
+			setValue(values);
+			this.size = size;
+		}
+
+		public void add(FixMessageField fixMessageField) {
+			((List<FixMessageField>)getValue()).add(fixMessageField);
+		}
+
+		public int getSize() {
+			return size;
+		}
+	}
+	
 	public int getSeqNum() {
 		return seqNum;
 	}

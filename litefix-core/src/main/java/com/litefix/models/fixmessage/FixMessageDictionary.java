@@ -1,8 +1,10 @@
 package com.litefix.models.fixmessage;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.litefix.caches.NumbersCache;
@@ -143,6 +145,7 @@ public class FixMessageDictionary {
 		private final String msgType;
 		
 		private final Map<String,FixMessageFieldTemplate> fields = new LinkedHashMap<>();
+		private final Map<String,List<FixMessageFieldTemplate>> groupedFields = new LinkedHashMap<>();
 		
 		public FixMessageTemplate(String msgType) {
 			super();
@@ -161,6 +164,10 @@ public class FixMessageDictionary {
 		
 		public FixMessageTemplate addGroup( int id, String name, boolean mandatory, FixMessageFieldTemplate[] groupFields  ) {
 			this.fields.put(NumbersCache.toString(id), new FixMessageFieldTemplate(id, name, mandatory, FieldType.GROUP_SIZE).setValue(groupFields));
+			for ( FixMessageFieldTemplate t : groupFields) {
+				this.fields.put(NumbersCache.toString(t.id), t);
+			}
+			this.groupedFields.put(NumbersCache.toString(id), new ArrayList<>());
 			return this;
 		}
 		
