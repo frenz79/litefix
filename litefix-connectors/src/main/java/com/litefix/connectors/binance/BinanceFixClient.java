@@ -131,9 +131,9 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		GroupDecoder levelsDecoder = decoder.asGroupDecoder(268); // NoMDEntries
 		
 		for ( int i=0; i<levelsDecoder.getGroupSize(); i++ ) {
-			char side = levelsDecoder.asChar(269);
-			BigDecimal price = levelsDecoder.asBigDecimal(270);	// MDEntryPx
-			BigDecimal qty = levelsDecoder.asBigDecimal(271);		// MDEntrySize
+			char side = levelsDecoder.at(i).asChar(269);
+			BigDecimal price = levelsDecoder.at(i).asBigDecimal(270);	// MDEntryPx
+			BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
 			
 			BookLevel level = new BookLevel( price,qty );
 			

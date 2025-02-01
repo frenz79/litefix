@@ -26,15 +26,15 @@ public class NumbersCache {
 	}
 	
 	public static byte[] toStringBytes( int v ) {
-		return (v<CACHE_SIZE)?int2bytes[v]:String.valueOf(v).getBytes();
+		return (v<CACHE_SIZE && v>=0)?int2bytes[v]:String.valueOf(v).getBytes();
 	}
 	
 	public static String toString( int v ) {
-		return (v<CACHE_SIZE)?int2str[v]:String.valueOf(v);
+		return (v<CACHE_SIZE && v>=0)?int2str[v]:String.valueOf(v);
 	}
 	
 	public static String toPaddedString( int v ) {
-		return (v<CACHE_SIZE)?int2PaddedStr[v]:String.valueOf(v);
+		return (v<CACHE_SIZE && v>=0)?int2PaddedStr[v]:String.valueOf(v);
 	}
 	
 	public static int fromString( String v ) {

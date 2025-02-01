@@ -6,6 +6,7 @@ import java.util.Arrays;
 
 import com.litefix.caches.NumbersCache;
 import com.litefix.commons.utils.ByteUtils;
+import com.litefix.commons.utils.Pair;
 import com.litefix.commons.utils.TimeUtils;
 
 public class FixMessageDecoder extends AbstractEncoderDecoder {
@@ -45,106 +46,32 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	public class GroupDecoder {
+		private int occurrence = 0;
 		private int groupOffset = 0;
 		private final int groupSize;
 		
 		GroupDecoder( int fieldId ){
-			this.groupSize = getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep());
+			Pair<Integer, Integer> p = getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), occurrence);
+			this.groupSize = p.getLeft();
+			this.groupOffset = p.getRight();
 		}
 		
-		public BigDecimal asBigDecimal(int fieldId) {
-			return new BigDecimal(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		public GroupDecoder at(int i) {
+			this.occurrence = i;
+			return this;
 		}
 		
-		private final String getTagValue( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
-			byte[] field = NumbersCache.toStringBytes(fieldId);
-			int fieldLen = field.length;
-			int endOffset = startOffset+ groupOffset + len;
-			
-			for (int i=startOffset + groupOffset; i<endOffset; i++) {
-				int startIdx = 0;
-				for (; startIdx<fieldLen; startIdx++) {
-					if (field[startIdx]!=buff[i]) {
-						break;
-					}
-					++i;
-				}
-				
-				if (startIdx==fieldLen && buff[i]=='=') {
-					int endIdx = ++i;
-					startIdx = endIdx;
-					boolean isNumber = true;
-					
-					for(; endIdx<endOffset; endIdx++) {
-						if (buff[endIdx]==fieldSep) {
-							break;
-						}					
-						if ( isNumber ) {
-							isNumber = (buff[endIdx]>='0' && buff[endIdx]<='9' || buff[endIdx]==decimalSep);
-						}
-					}
-					if (endIdx==startIdx) {
-						return "";
-					}
-					
-					groupOffset += i;
-					
-					if (isNumber) {
-						try {
-							int num = ByteUtils.charsToInt( buff, startIdx, endIdx);
-							return NumbersCache.toString(num);
-						} catch (Exception ex) {
-							ex.printStackTrace();
-						}
-					}
-					return new String(buff, startIdx, endIdx-startIdx);
-				}			
-			}	
-			return "";
-		//	throw new RuntimeException(
-		//		String.format("Cannot find field:%d from offset:%d in message:%s", fieldId, startOffset, new String(ByteBuffer.wrap(buff,startOffset,len).array())));
-		}
-		
-		private final Integer getTagValueAsInt( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
-			byte[] field = NumbersCache.toStringBytes(fieldId);
-			int fieldLen = field.length;
-			int endOffset = startOffset + groupOffset +len;	
-			
-			for (int i=startOffset + groupOffset; i<endOffset; i++) {
-				int startIdx = 0;
-				for (; startIdx<fieldLen; startIdx++) {
-					if (field[startIdx]!=buff[i]) {
-						break;
-					}
-					++i;
-				}
-				
-				if (startIdx==fieldLen && buff[i]=='=') {
-					int endIdx = ++i;
-					startIdx = endIdx;
-					
-					for(; endIdx<endOffset; endIdx++) {
-						if (buff[endIdx]==fieldSep) {
-							break;
-						}					
-					}
-					if (endIdx==startIdx) {
-						return null;
-					}
-					groupOffset += i;
-					return ByteUtils.charsToInt( buff, startIdx, endIdx);
-				}			
-			}
-			return null;
-		}
-
 		public int getGroupSize() {
 			return groupSize;
 		}
+		
+		public BigDecimal asBigDecimal(int fieldId) {
+			return new BigDecimal(
+				getTagValue(msgBuff, msgBuffFrom+groupOffset, msgBuffLen-groupOffset, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), occurrence).getLeft());
+		}
 
-		public char asChar(int i) {
-			// TODO Auto-generated method stub
-			return 0;
+		public char asChar(int fieldId) {
+			return getTagValue(msgBuff, msgBuffFrom+groupOffset, msgBuffLen-groupOffset, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), occurrence).getLeft().charAt(0);
 		}
 	}
 	
@@ -188,38 +115,38 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	}
 	
 	public String asString( int fieldId ) {
-		return getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep());
+		return getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft();
 	}
 	
 	public Boolean asBoolean( int fieldId ) {
-		return getTagValueAsBoolean(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep());
+		return getTagValueAsBoolean(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft();
 	}
 	
 	public Integer asInt( int fieldId ) {
-		return getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep());
+		return getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft();
 	}
 
 	public long asLong( int fieldId ) {
-		return Long.valueOf(getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		return Long.valueOf(getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft());
 	}
 
 	public double asFloat( int fieldId ) {
-		return Double.valueOf(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		return Double.valueOf(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft());
 	}
 	
 	public char asChar( int fieldId ) {
-		return getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()).charAt(0);
+		return getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft().charAt(0);
 	}
 	
 	public LocalDateTime asTimestamp( int fieldId ) {
-		return TimeUtils.toUTCTimestamp(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		return TimeUtils.toUTCTimestamp(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft());
 	}
 	
 	public byte[] getBytes( int fieldId ) {
-		return getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()).getBytes();
+		return getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft().getBytes();
 	}
 	
-	private static final Boolean getTagValueAsBoolean( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
+	private static final Pair<Boolean,Integer> getTagValueAsBoolean( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep, int occurrence  ) {
 		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = startOffset+len;	
@@ -236,27 +163,28 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 			if (startIdx==fieldLen && buff[i]=='=') {
 				int endIdx = ++i;
 				if ( buff[endIdx]==fieldSep ) {
-					return null;
+					return new Pair<>(null, endIdx);
 				}
 				if ( buff[endIdx]=='N') {
-					return Boolean.FALSE;
+					return new Pair<>(Boolean.FALSE, endIdx);
 				}
 				if ( buff[endIdx]=='Y') {
-					return Boolean.TRUE;
+					return new Pair<>(Boolean.TRUE, endIdx);
 				}
 				throw new RuntimeException(String.format("Invalid boolean value:%c", buff[endIdx]));
 
 			}			
 		}
-		return null;
+		return new Pair<>(null, endOffset);
 //		throw new RuntimeException(
 //			String.format("Cannot find field:%d from offset:%d in message:%s", fieldId, startOffset, new String(ByteBuffer.wrap(buff,startOffset,len).array())));
 	}
 	
-	private static final Integer getTagValueAsInt( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
+	private static final Pair<Integer,Integer> getTagValueAsInt( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep, int occurrence ) {
 		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = startOffset+len;	
+		int occurrenceCount = 0;
 		
 		for (int i=startOffset; i<endOffset; i++) {
 			int startIdx = 0;
@@ -268,27 +196,31 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 			}
 			
 			if (startIdx==fieldLen && buff[i]=='=') {
-				int endIdx = ++i;
-				startIdx = endIdx;
-				
-				for(; endIdx<endOffset; endIdx++) {
-					if (buff[endIdx]==fieldSep) {
-						break;
-					}					
+				if (occurrenceCount==occurrence) {
+					int endIdx = ++i;
+					startIdx = endIdx;
+					
+					for(; endIdx<endOffset; endIdx++) {
+						if (buff[endIdx]==fieldSep) {
+							break;
+						}					
+					}
+					if (endIdx==startIdx) {
+						return null;
+					}
+					return new Pair<>(ByteUtils.charsToInt( buff, startIdx, endIdx), endIdx );
 				}
-				if (endIdx==startIdx) {
-					return null;
-				}
-				return ByteUtils.charsToInt( buff, startIdx, endIdx);
+				occurrenceCount++;
 			}			
 		}
 		return null;
 	}
 	
-	private static final String getTagValue( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
+	private static final Pair<String,Integer> getTagValue( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep, int occurrence ) {
 		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
 		int endOffset = startOffset+len;
+		int occurrenceCount = 0;
 		
 		for (int i=startOffset; i<endOffset; i++) {
 			int startIdx = 0;
@@ -300,33 +232,39 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 			}
 			
 			if (startIdx==fieldLen && buff[i]=='=') {
-				int endIdx = ++i;
-				startIdx = endIdx;
-				boolean isNumber = true;
+				if (occurrenceCount==occurrence) {
+					int endIdx = ++i;
+					startIdx = endIdx;
+					boolean isNumber = true;
+					
+					for(; endIdx<endOffset; endIdx++) {
+						if (buff[endIdx]==fieldSep) {
+							break;
+						}					
+						if ( isNumber ) {
+							isNumber = (buff[endIdx]>='0' && buff[endIdx]<='9' || buff[endIdx]==decimalSep);
+						}
+					}
+					if (endIdx==startIdx) {
+						return new Pair<>("", endIdx);
+					}
+					/* bugged when contains .
+					if (isNumber) {
+						try {
+							int num = ByteUtils.charsToInt( buff, startIdx, endIdx);
+							return new Pair<>(NumbersCache.toString(num), endIdx);
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
+					}
+					*/
+					return new Pair<>(new String(buff, startIdx, endIdx-startIdx), endIdx);
+				}
 				
-				for(; endIdx<endOffset; endIdx++) {
-					if (buff[endIdx]==fieldSep) {
-						break;
-					}					
-					if ( isNumber ) {
-						isNumber = (buff[endIdx]>='0' && buff[endIdx]<='9' || buff[endIdx]==decimalSep);
-					}
-				}
-				if (endIdx==startIdx) {
-					return "";
-				}
-				if (isNumber) {
-					try {
-						int num = ByteUtils.charsToInt( buff, startIdx, endIdx);
-						return NumbersCache.toString(num);
-					} catch (Exception ex) {
-						ex.printStackTrace();
-					}
-				}
-				return new String(buff, startIdx, endIdx-startIdx);
+				occurrenceCount++;
 			}			
 		}	
-		return "";
+		return new Pair<>("", endOffset);
 	//	throw new RuntimeException(
 	//		String.format("Cannot find field:%d from offset:%d in message:%s", fieldId, startOffset, new String(ByteBuffer.wrap(buff,startOffset,len).array())));
 	}
