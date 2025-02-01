@@ -1,5 +1,6 @@
 package com.litefix.models.fixmessage;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 
@@ -39,6 +40,114 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 		this.rcvNanoTime = rcvNanoTime;
 	}
 	
+	public GroupDecoder asGroupDecoder(int id) {
+		return new GroupDecoder( id );
+	}
+	
+	public class GroupDecoder {
+		private int groupOffset = 0;
+		private final int groupSize;
+		
+		GroupDecoder( int fieldId ){
+			this.groupSize = getTagValueAsInt(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep());
+		}
+		
+		public BigDecimal asBigDecimal(int fieldId) {
+			return new BigDecimal(getTagValue(msgBuff, msgBuffFrom, msgBuffLen, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep()));
+		}
+		
+		private final String getTagValue( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
+			byte[] field = NumbersCache.toStringBytes(fieldId);
+			int fieldLen = field.length;
+			int endOffset = startOffset+ groupOffset + len;
+			
+			for (int i=startOffset + groupOffset; i<endOffset; i++) {
+				int startIdx = 0;
+				for (; startIdx<fieldLen; startIdx++) {
+					if (field[startIdx]!=buff[i]) {
+						break;
+					}
+					++i;
+				}
+				
+				if (startIdx==fieldLen && buff[i]=='=') {
+					int endIdx = ++i;
+					startIdx = endIdx;
+					boolean isNumber = true;
+					
+					for(; endIdx<endOffset; endIdx++) {
+						if (buff[endIdx]==fieldSep) {
+							break;
+						}					
+						if ( isNumber ) {
+							isNumber = (buff[endIdx]>='0' && buff[endIdx]<='9' || buff[endIdx]==decimalSep);
+						}
+					}
+					if (endIdx==startIdx) {
+						return "";
+					}
+					
+					groupOffset += i;
+					
+					if (isNumber) {
+						try {
+							int num = ByteUtils.charsToInt( buff, startIdx, endIdx);
+							return NumbersCache.toString(num);
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
+					}
+					return new String(buff, startIdx, endIdx-startIdx);
+				}			
+			}	
+			return "";
+		//	throw new RuntimeException(
+		//		String.format("Cannot find field:%d from offset:%d in message:%s", fieldId, startOffset, new String(ByteBuffer.wrap(buff,startOffset,len).array())));
+		}
+		
+		private final Integer getTagValueAsInt( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
+			byte[] field = NumbersCache.toStringBytes(fieldId);
+			int fieldLen = field.length;
+			int endOffset = startOffset + groupOffset +len;	
+			
+			for (int i=startOffset + groupOffset; i<endOffset; i++) {
+				int startIdx = 0;
+				for (; startIdx<fieldLen; startIdx++) {
+					if (field[startIdx]!=buff[i]) {
+						break;
+					}
+					++i;
+				}
+				
+				if (startIdx==fieldLen && buff[i]=='=') {
+					int endIdx = ++i;
+					startIdx = endIdx;
+					
+					for(; endIdx<endOffset; endIdx++) {
+						if (buff[endIdx]==fieldSep) {
+							break;
+						}					
+					}
+					if (endIdx==startIdx) {
+						return null;
+					}
+					groupOffset += i;
+					return ByteUtils.charsToInt( buff, startIdx, endIdx);
+				}			
+			}
+			return null;
+		}
+
+		public int getGroupSize() {
+			return groupSize;
+		}
+
+		public char asChar(int i) {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+	}
+	
 	public boolean isEqual( int fieldId, byte[] buffCompare ) {
 		byte[] field = NumbersCache.toStringBytes(fieldId);
 		int fieldLen = field.length;
@@ -72,6 +181,10 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 			}			
 		}		
 		throw new RuntimeException(String.format("Cannot find field:%d", fieldId));
+	}
+	
+	public BigDecimal asBigDecimal(int i) {
+		return new BigDecimal(asString(i));
 	}
 	
 	public String asString( int fieldId ) {
@@ -170,8 +283,6 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 			}			
 		}
 		return null;
-	//	throw new RuntimeException(
-	//		String.format("Cannot find field:%d from offset:%d in message:%s", fieldId, startOffset, new String(ByteBuffer.wrap(buff,startOffset,len).array())));
 	}
 	
 	private static final String getTagValue( byte[] buff, int startOffset, int len, int fieldId, char fieldSep, char decimalSep ) {
@@ -219,8 +330,6 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 	//	throw new RuntimeException(
 	//		String.format("Cannot find field:%d from offset:%d in message:%s", fieldId, startOffset, new String(ByteBuffer.wrap(buff,startOffset,len).array())));
 	}
-	
-	
 
 	public String getMsgType() {
 		return msgType;

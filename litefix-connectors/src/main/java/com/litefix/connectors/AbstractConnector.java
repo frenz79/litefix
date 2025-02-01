@@ -30,7 +30,6 @@ public abstract class AbstractConnector implements IFixMessageListener, IFixSess
 		System.out.println("onConnect > "+upOrDown);
 	}
 	
-
 	@Override
 	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException {
 		System.out.println("onmessage > "+decoder);

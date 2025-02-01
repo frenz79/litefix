@@ -6,6 +6,7 @@ import java.io.InputStream;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
+import com.litefix.connectors.MarketData;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;
@@ -39,7 +40,15 @@ public class BinanceClient {
 			@Override
 			public void onLogon(FixMessageDecoder decoder, boolean result)
 					throws SessionRejectMessageException, BusinessRejectMessageException {
-				subscribeBook("BTCUSDT");
+				String symbol = "BTCUSDT";
+				
+				System.out.println("Subscribing Book: " + symbol);
+				subscribeBook(symbol);
+			}
+
+			@Override
+			public void onMarketData(MarketData m) {
+				System.out.println("Book: " + m);
 			}
 		};
 		

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.litefix.connectors.MarketData;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
@@ -18,7 +19,14 @@ class BinanceFixClientTest {
 	
 	@Test
 	void testCalculateSignature() throws Exception {
-		BinanceFixClient c = new BinanceFixClient();
+		BinanceFixClient c = new BinanceFixClient() {
+
+			@Override
+			public void onMarketData(MarketData m) {
+				// TODO Auto-generated method stub
+			}
+			
+		};
 		
 		String signature = c.calculateSignature(
 				"A" + DefaultFix44Dictionary.init().getFieldSep() +
