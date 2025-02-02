@@ -5,7 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.util.Base64;
-import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.utils.TimeUtils;
@@ -31,6 +32,8 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	private ClientFixSession session;
 	private PrivateKey privateKey;
 	private String apiKey;
+	
+	private Map<String,MarketData> lastBookMap = new HashMap<>();
 	
 	public BinanceFixClient start( String privateKey, String apiKey, ClientFixSessionConfig sessionCfg ) throws Exception {
 		initLogging();
@@ -122,11 +125,14 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	// 262=338a6a9f-cd55-42fb-a7c0-85aae0602a6455=BTCUSDT25044=10762840268=2
 	// 269=0270=105427.98000000271=0.00276000269=1270=105427.99000000271=0.0036600010=182
 	MarketData decodeMarketDataSnapshot(FixMessageDecoder decoder) {
+		String symbol = decoder.asString(55);
+		
 		MarketData m = new MarketData(
 			decoder.asString(262) 	// MDReqID
-		,	decoder.asString(55) 	// Symbol
+		,	symbol	// Symbol
 		,	decoder.asString(25044) // LastBookUpdateID
 		);
+		m.setRcvNanoTime(decoder.getRcvNanoTime());
 		
 		GroupDecoder levelsDecoder = decoder.asGroupDecoder(268); // NoMDEntries
 		
@@ -136,29 +142,55 @@ public abstract class BinanceFixClient extends AbstractConnector {
 			BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
 			
 			BookLevel level = new BookLevel( price,qty );
-			
-			switch(side) {
-				case '0' : m.addBidLevel( level ); break;
-				case '1' : m.addAskLevel( level ); break;
-			}
+			m.addLevel(level, side=='0');
 		}
 		
+		lastBookMap.put(symbol, m);
 		return m;
 	}
 	
-	// 8=FIX.4.49=000017835=X49=SPOT56=SPOTTEST34=452=20250201-16:15:48.588552
-	// 262=ddb53348-43e7-4c1a-8966-a4b79c62b8c4268=1279=1269=0270=102058.79000000
-	// 271=0.0035300055=BTCUSDT25044=1209213210=217
+	/*
+	8=FIX.4.49=000017835=X49=SPOT56=SPOTTEST34=352=20250201-17:06:35.135896262=1636e032-9077-4fcf-8406-07e185c91187
+	268=1279=1269=0270=102075.16000000271=0.0049000055=BTCUSDT25044=1211832410=222
+	
+	8=FIX.4.49=000017835=X49=SPOT56=SPOTTEST34=452=20250201-17:06:39.556023262=1636e032-9077-4fcf-8406-07e185c91187
+	268=1279=1269=0270=102075.15000000271=0.0029000055=BTCUSDT25044=1211833110=211
+	
+	8=FIX.4.49=000017835=X49=SPOT56=SPOTTEST34=552=20250201-17:06:39.566566262=1636e032-9077-4fcf-8406-07e185c91187
+	268=1279=1269=0270=102052.00000000271=0.0002300055=BTCUSDT25044=1211833210=209
+	*/		
 	MarketData decodeMarketDataIncrementalRefresh(FixMessageDecoder decoder) {
-		MarketData m = new MarketData(
-				decoder.asString(262) 	// MDReqID
-			,	decoder.asString(55) 	// Symbol
-			,	decoder.asString(25044) // LastBookUpdateID
-		);
+		String symbol = decoder.asString(55);
+		MarketData cachedBook = lastBookMap.get(symbol);
+		cachedBook.setRcvNanoTime(decoder.getRcvNanoTime());
 		
-		// TODO: code me!
+		GroupDecoder levelsDecoder = decoder.asGroupDecoder(268); // NoMDEntries
 		
-		return m;
+		for ( int i=0; i<levelsDecoder.getGroupSize(); i++ ) {			
+			char side = levelsDecoder.at(i).asChar(269);
+			BigDecimal price = levelsDecoder.at(i).asBigDecimal(270);	// MDEntryPx
+			BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
+			int LastBookUpdateID = levelsDecoder.at(i).asInt(25044);	// MDEntrySize
+			
+			char action = levelsDecoder.at(i).asChar(269); // MDUpdateAction
+			
+			switch (action) {
+			case '0': // New
+				cachedBook.addLevel(new BookLevel( price,qty ), side=='0');
+				break;
+			case '1': // Upd
+				cachedBook.getLevel(0, side=='0').setPriceAndSize(price,qty);
+				break;
+			case '2': // Del
+				if (side=='0') {
+					cachedBook.delBidBestLevel();
+				} else {
+					cachedBook.delAskBestLevel();
+				}
+				break;
+			}
+		}
+		return cachedBook;
 	}
 
 	/*
@@ -169,9 +201,9 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	# DEPTH Stream
 	8=FIX.4.4|9=127|35=V|49=TRADER1|56=SPOT|34=7|52=20241122-06:17:14.443822|262=DEPTH_STREAM|263=1|264=10|266=Y|146=1|55=BTCUSDT|267=2|269=0|269=1|10=111|
 	*/
-	public BinanceFixClient subscribeBook(String symbol) {
+	public BinanceFixClient subscribeBook(String symbol, String requestId) {		
 		FixMessageEncoder bookSub = session.newEncoder("V")
-		.set(262, UUID.randomUUID().toString() )	// MDReqID
+		.set(262, requestId )	// MDReqID
 		.set(263, '1')	// SubscriptionRequestType
 		.set(264, 1) // MarketDepth
 		.set(146, 1) // NoRelatedSym
@@ -180,8 +212,14 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		.set(267, 269, '0') // bid
 		.set(267, 269, '1') // offer
 		;
-		
 		session.sendMessage(bookSub);
+		
+		// Send back existing image...if present
+		MarketData lastBook = lastBookMap.get(symbol);		
+		if ( lastBook!=null ) {
+			onMarketData(lastBook);
+		}
+		
 		return this;
 	}
 }

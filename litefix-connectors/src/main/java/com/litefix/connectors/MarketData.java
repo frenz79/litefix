@@ -8,18 +8,12 @@ public class MarketData {
 
 	private final String requestId;
 	private final String symbol;
-	private final String bookId;
+	private String bookId;
+
+	private long rcvNanoTime;
 	
 	private List<BookLevel> bidLevels = new ArrayList<>();
 	private List<BookLevel> askLevels = new ArrayList<>();
-	
-	public void addBidLevel(BookLevel level) {
-		bidLevels.add(level);
-	}
-	
-	public void addAskLevel(BookLevel level) {
-		askLevels.add(level);
-	}
 	
 	public MarketData(String requestId, String symbol, String bookId) {
 		super();
@@ -29,8 +23,8 @@ public class MarketData {
 	}
 	
 	public static class BookLevel {
-		private final BigDecimal price;
-		private final BigDecimal size;
+		private BigDecimal price;
+		private BigDecimal size;
 		
 		public BookLevel(BigDecimal price, BigDecimal size) {
 			super();
@@ -48,7 +42,22 @@ public class MarketData {
 
 		@Override
 		public String toString() {
-			return "BookLevel [price=" + price + ", size=" + size + "]";
+			return "[ " + price + " | " + size + " ]";
+		}
+
+		public BookLevel setPrice(BigDecimal price) {
+			this.price = price;
+			return this;
+		}
+
+		public BookLevel setSize(BigDecimal size) {
+			this.size = size;
+			return this;
+		}
+
+		public void setPriceAndSize(BigDecimal price, BigDecimal size) {
+			this.price = price;
+			this.size = size;
 		}
 	}
 
@@ -68,6 +77,41 @@ public class MarketData {
 		this.askLevels = askLevels;
 	}
 
+	public void delBidBestLevel() {
+		this.bidLevels.remove(0);
+	}
+
+	public void delAskBestLevel() {
+		this.askLevels.remove(0);
+	}
+	
+	public void addLevel(BookLevel level, boolean isBid) {
+		if (isBid)bidLevels.add(level);
+		else askLevels.add(level);
+	}
+	
+	public void addBidLevel(BookLevel level) {
+		bidLevels.add(level);
+	}
+	
+	public void addAskLevel(BookLevel level) {
+		askLevels.add(level);
+	}
+	
+	public BookLevel getLevel(int id, boolean isBid) {
+		return (isBid)
+			?this.bidLevels.get(id)
+			:this.askLevels.get(id);
+	}
+	
+	public BookLevel getBidLevel(int id) {
+		return this.bidLevels.get(id);
+	}
+
+	public BookLevel getAskLevel(int id) {
+		return this.askLevels.get(id);
+	}
+	
 	public String getRequestId() {
 		return requestId;
 	}
@@ -84,5 +128,17 @@ public class MarketData {
 	public String toString() {
 		return "MarketData [requestId=" + requestId + ", symbol=" + symbol + ", bookId=" + bookId + ", bidLevels="
 				+ bidLevels + ", askLevels=" + askLevels + "]";
+	}
+
+	public void setBookId(String bookId) {
+		this.bookId = bookId;
+	}
+
+	public long getRcvNanoTime() {
+		return rcvNanoTime;
+	}
+
+	public void setRcvNanoTime(long rcvNanoTime) {
+		this.rcvNanoTime = rcvNanoTime;
 	}
 }

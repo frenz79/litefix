@@ -3,6 +3,7 @@ package com.litefix.connectors.binance;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.UUID;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
@@ -43,7 +44,7 @@ public class BinanceClient {
 				String symbol = "BTCUSDT";
 				
 				System.out.println("Subscribing Book: " + symbol);
-				subscribeBook(symbol);
+				subscribeBook(symbol, UUID.randomUUID().toString());
 			}
 
 			@Override
