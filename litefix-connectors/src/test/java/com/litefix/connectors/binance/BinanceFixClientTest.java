@@ -4,7 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-import com.litefix.connectors.MarketData;
+import com.litefix.connectors.Book;
+import com.litefix.connectors.Trade;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
@@ -22,7 +23,12 @@ class BinanceFixClientTest {
 		BinanceFixClient c = new BinanceFixClient() {
 
 			@Override
-			public void onMarketData(MarketData m) {
+			public void onMarketData(Book m) {
+				// TODO Auto-generated method stub
+			}
+			
+			@Override
+			public void onMarketData(Trade m) {
 				// TODO Auto-generated method stub
 			}
 			

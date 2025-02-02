@@ -7,7 +7,8 @@ import java.util.UUID;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
-import com.litefix.connectors.MarketData;
+import com.litefix.connectors.Book;
+import com.litefix.connectors.Trade;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;
@@ -43,13 +44,21 @@ public class BinanceClient {
 					throws SessionRejectMessageException, BusinessRejectMessageException {
 				String symbol = "BTCUSDT";
 				
-				System.out.println("Subscribing Book: " + symbol);
+				System.out.println("Subscribing Book for: " + symbol);
 				subscribeBook(symbol, UUID.randomUUID().toString());
+				
+				System.out.println("Subscribing Trades for: " + symbol);
+				subscribeTrades(symbol, UUID.randomUUID().toString());
 			}
 
 			@Override
-			public void onMarketData(MarketData m) {
-				System.out.println("Book: " + m);
+			public void onMarketData(Book m) {
+				System.out.println(m);
+			}
+			
+			@Override
+			public void onMarketData(Trade m) {
+				System.out.println(m);
 			}
 		};
 		

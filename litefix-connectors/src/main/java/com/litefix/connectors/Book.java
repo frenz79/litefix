@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MarketData {
+public class Book {
 
 	private final String requestId;
 	private final String symbol;
@@ -15,7 +15,7 @@ public class MarketData {
 	private List<BookLevel> bidLevels = new ArrayList<>();
 	private List<BookLevel> askLevels = new ArrayList<>();
 	
-	public MarketData(String requestId, String symbol, String bookId) {
+	public Book(String requestId, String symbol, String bookId) {
 		super();
 		this.requestId = requestId;
 		this.symbol = symbol;
