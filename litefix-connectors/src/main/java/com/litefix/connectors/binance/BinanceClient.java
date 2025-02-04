@@ -47,8 +47,8 @@ public class BinanceClient {
 				System.out.println("Subscribing Book for: " + symbol);
 				subscribeBook(symbol, UUID.randomUUID().toString());
 				
-				System.out.println("Subscribing Trades for: " + symbol);
-				subscribeTrades(symbol, UUID.randomUUID().toString());
+			//	System.out.println("Subscribing Trades for: " + symbol);
+			//	subscribeTrades(symbol, UUID.randomUUID().toString());
 			}
 
 			@Override

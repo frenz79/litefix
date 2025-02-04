@@ -61,6 +61,25 @@ public class Book {
 		}
 	}
 
+	private int findForPrice( BigDecimal price, List<BookLevel> l) {
+		int size = l.size();
+		for ( int i=0; i<size; i++ ) {
+			if ( price.compareTo(l.get(i).price)==0 ) {
+				return i;
+			}
+		}
+		return -1;
+	}
+	
+	public BookLevel findForPrice( BigDecimal price, boolean isBid) {
+		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+		int idx = findForPrice(price,l);
+		if ( idx<0 ) {
+			return null;
+		}
+		return l.get(idx);
+	}
+	
 	public List<BookLevel> getBidLevels() {
 		return bidLevels;
 	}
@@ -77,17 +96,37 @@ public class Book {
 		this.askLevels = askLevels;
 	}
 
-	public void delBidBestLevel() {
-		this.bidLevels.remove(0);
-	}
-
-	public void delAskBestLevel() {
-		this.askLevels.remove(0);
+	public void delLevel(BigDecimal price, boolean isBid) {
+		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+		int idx = findForPrice(price,l);
+		l.remove(idx);
 	}
 	
 	public void addLevel(BookLevel level, boolean isBid) {
-		if (isBid)bidLevels.add(level);
-		else askLevels.add(level);
+		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+		int size = l.size();
+		
+		if ( size==0 ) {
+			l.add(level);
+		}
+		
+		BigDecimal priceToIns = level.price;
+		
+		if (isBid) {
+			// asc
+			for ( int i=0; i<size; i++ ) {
+				if ( priceToIns.compareTo(l.get(i).price)>=0 ) {
+					l.add(i, level);
+				}
+			}
+		} else {
+			// desc
+			for ( int i=0; i<size; i++ ) {
+				if ( priceToIns.compareTo(l.get(i).price)<=0 ) {
+					l.add(i, level);
+				}
+			}
+		}
 	}
 	
 	public void addBidLevel(BookLevel level) {
@@ -98,10 +137,8 @@ public class Book {
 		askLevels.add(level);
 	}
 	
-	public BookLevel getLevel(int id, boolean isBid) {
-		return (isBid)
-			?this.bidLevels.get(id)
-			:this.askLevels.get(id);
+	public BookLevel getLevel(BigDecimal price, boolean isBid) {
+		return findForPrice(price, isBid);
 	}
 	
 	public BookLevel getBidLevel(int id) {

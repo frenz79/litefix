@@ -186,21 +186,22 @@ public abstract class BinanceFixClient extends AbstractConnector {
 			BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
 			int LastBookUpdateID = levelsDecoder.at(i).asInt(25044);	// MDEntrySize
 			
-			char action = levelsDecoder.at(i).asChar(269); // MDUpdateAction
+			char action = levelsDecoder.at(i).asChar(279); // MDUpdateAction
 			
 			switch (action) {
 			case '0': // New
 				cachedBook.addLevel(new BookLevel( price,qty ), side=='0');
 				break;
 			case '1': // Upd
-				cachedBook.getLevel(0, side=='0').setPriceAndSize(price,qty);
+				BookLevel level = cachedBook.findForPrice(price, side=='0');
+				if ( level!=null ) {
+					level.setSize(qty);
+				} else {
+					System.out.println("Cannot process UPD: no level found for price:"+price.toPlainString());
+				}
 				break;
 			case '2': // Del
-				if (side=='0') {
-					cachedBook.delBidBestLevel();
-				} else {
-					cachedBook.delAskBestLevel();
-				}
+				cachedBook.delLevel(price, side=='0');
 				break;
 			}
 		}
