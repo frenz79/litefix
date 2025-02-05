@@ -140,12 +140,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	// 269=0270=105427.98000000271=0.00276000269=1270=105427.99000000271=0.0036600010=182
 	Book decodeMarketDataSnapshot(FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
-		
-		Book m = new Book(
-			decoder.asString(262) 	// MDReqID
-		,	symbol	// Symbol
-		,	decoder.asString(25044) // LastBookUpdateID
-		);
+		Book m = this.lastBookMap.get(symbol);
 		m.setRcvNanoTime(decoder.getRcvNanoTime());
 		
 		GroupDecoder levelsDecoder = decoder.asGroupDecoder(268); // NoMDEntries
@@ -157,9 +152,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 			
 			BookLevel level = new BookLevel( price,qty );
 			m.addLevel(level, side=='0');
-		}
-		
-		lastBookMap.put(symbol, m);
+		}		
 		return m;
 	}
 	
@@ -183,26 +176,41 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		for ( int i=0; i<levelsDecoder.getGroupSize(); i++ ) {			
 			char side = levelsDecoder.at(i).asChar(269);
 			BigDecimal price = levelsDecoder.at(i).asBigDecimal(270);	// MDEntryPx
-			BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
-			int LastBookUpdateID = levelsDecoder.at(i).asInt(25044);	// MDEntrySize
-			
 			char action = levelsDecoder.at(i).asChar(279); // MDUpdateAction
 			
-			switch (action) {
-			case '0': // New
-				cachedBook.addLevel(new BookLevel( price,qty ), side=='0');
-				break;
-			case '1': // Upd
-				BookLevel level = cachedBook.findForPrice(price, side=='0');
-				if ( level!=null ) {
-					level.setSize(qty);
+			// Del
+			if ( action=='2' ) {
+				if ( cachedBook.getDepth()==1 ) {
+					if (!cachedBook.delBestLevel(side=='0')) {
+						System.out.println("Cannot process DEL: no BEST level found");
+					}
 				} else {
-					System.out.println("Cannot process UPD: no level found for price:"+price.toPlainString());
+					if (!cachedBook.delLevel(price, side=='0')) {
+						System.out.println("Cannot process DEL: no level found for price:"+price.toPlainString());
+					}
 				}
 				break;
-			case '2': // Del
-				cachedBook.delLevel(price, side=='0');
-				break;
+			} else {
+				BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
+				switch (action) {
+				case '0': // New
+					if ( cachedBook.getDepth()==1 ) {
+						cachedBook.setBestLevel(new BookLevel( price,qty ), side=='0');
+					} else {
+						cachedBook.addLevel(new BookLevel( price,qty ), side=='0');
+					}
+					break;
+				case '1': // Upd
+					int LastBookUpdateID = levelsDecoder.at(i).asInt(25044);	// LastBookUpdateID
+					BookLevel level = ( cachedBook.getDepth()==1 )?
+						cachedBook.getBestLevel( side=='0'):cachedBook.findForPrice(price, side=='0');
+					if ( level!=null ) {
+						level.setSize(qty);
+					} else {
+						System.out.println("Cannot process UPD: no level found for price:"+price.toPlainString());
+					}
+					break;
+				}
 			}
 		}
 		return cachedBook;
@@ -231,11 +239,11 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	# DEPTH Stream
 	8=FIX.4.4|9=127|35=V|49=TRADER1|56=SPOT|34=7|52=20241122-06:17:14.443822|262=DEPTH_STREAM|263=1|264=10|266=Y|146=1|55=BTCUSDT|267=2|269=0|269=1|10=111|
 	*/
-	public BinanceFixClient subscribeBook(String symbol, String requestId) {		
+	public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {		
 		FixMessageEncoder bookSub = session.newEncoder("V")
 		.set(262, requestId )	// MDReqID
 		.set(263, '1')	// SubscriptionRequestType
-		.set(264, 1) // MarketDepth
+		.set(264, bookLevels) // MarketDepth
 					 // 1 - Book Ticker subscription
 					 // 2-5000 - Diff. Depth Stream
 		.set(146, 1) // NoRelatedSym
@@ -250,9 +258,17 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		session.sendMessage(bookSub);
 		
 		// Send back existing image...if present
-		Book lastBook = lastBookMap.get(symbol);		
+		Book lastBook = this.lastBookMap.get(symbol);		
 		if ( lastBook!=null ) {
 			onMarketData(lastBook);
+		} else {
+			this.lastBookMap.put(symbol, 
+				new Book(
+					requestId
+				,	symbol	// Symbol
+				,	null
+				, bookLevels)
+			);
 		}
 		return this;
 	}

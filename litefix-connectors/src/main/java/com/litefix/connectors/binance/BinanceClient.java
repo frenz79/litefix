@@ -45,7 +45,7 @@ public class BinanceClient {
 				String symbol = "BTCUSDT";
 				
 				System.out.println("Subscribing Book for: " + symbol);
-				subscribeBook(symbol, UUID.randomUUID().toString());
+				subscribeBook(symbol, UUID.randomUUID().toString(), 10);
 				
 			//	System.out.println("Subscribing Trades for: " + symbol);
 			//	subscribeTrades(symbol, UUID.randomUUID().toString());
