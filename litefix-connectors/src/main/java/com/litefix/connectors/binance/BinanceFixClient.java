@@ -37,7 +37,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	private String apiKey;
 	
 	// Symbol, Book
-	private Map<String,Book> lastBookMap = new HashMap<>();
+	Map<String,Book> lastBookMap = new HashMap<>();
 	// RequestId, 
 	private Set<String> tradeSubsMap = new HashSet<>();
 	
