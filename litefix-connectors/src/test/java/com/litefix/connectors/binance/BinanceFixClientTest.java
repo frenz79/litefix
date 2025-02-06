@@ -1,6 +1,9 @@
 package com.litefix.connectors.binance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +25,7 @@ class BinanceFixClientTest {
 	private BinanceFixClient binanceFixClient = new BinanceFixClient() {
 
 		@Override
-		public void onMarketData(Book m) {
+		public void onMarketData(Book<BigDecimal,BigDecimal> m) {
 			// TODO Auto-generated method stub
 		}
 		
@@ -34,7 +37,7 @@ class BinanceFixClientTest {
 		@Override
 		public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {
 			this.lastBookMap.put(symbol, 
-					new Book(
+					new Book<BigDecimal,BigDecimal>(
 						requestId
 					,	symbol	// Symbol
 					,	null
@@ -78,35 +81,62 @@ class BinanceFixClientTest {
 		ClientFixSession session = (ClientFixSession) new ClientFixSession( null, null, sessionCfg );
 	}	
 	
-	// 8=FIX.4.49=000093035=W49=SPOT56=SPOTTEST34=252=20250205-18:15:38.258754262=3c95b73d-fa9a-42b6-ac72-7e9c1bb0217b
-	// 55=BTCUSDT25044=300920268=20269=0270=96889.99000000271=0.00562000269=0270=96889.98000000271=0.00403000269=0
-	// 270=96889.43000000271=0.00357000269=0270=96869.96000000271=0.00152000269=0270=96869.60000000271=0.00450000
-	// 269=0270=96863.86000000271=0.00262000269=0270=96863.66000000271=0.00382000269=0270=96863.21000000271=0.00326000
-	// 269=0270=96863.20000000271=0.00372000269=0270=96767.41000000271=0.00010000269=1270=96909.92000000271=0.00494000
-	// 269=1270=96913.67000000271=0.00284000269=1270=96913.95000000271=0.00439000269=1270=96913.96000000271=0.00491000
-	// 269=1270=96972.00000000271=0.00175000269=1270=96972.60000000271=0.00305000269=1270=96974.01000000271=0.00294000
-	// 269=1270=96998.98000000271=0.00464000269=1270=96998.99000000271=0.00372000269=1270=96999.00000000271=0.00310000
-	// 10=105
 	@Test
 	void decodeMarketDataSnapshot() throws Exception {
 		String msgBuff = "8=FIX.4.49=000093035=W49=SPOT56=SPOTTEST34=252=20250205-18:15:38.258754262=3c95b73d-fa9a-42b6-ac72-7e9c1bb0217b\r\n"
-				+ "55=BTCUSDT25044=300920268=20269=0270=96889.99000000271=0.00562000269=0270=96889.98000000271=0.00403000269=0\r\n"
-				+ "270=96889.43000000271=0.00357000269=0270=96869.96000000271=0.00152000269=0270=96869.60000000271=0.00450000\r\n"
-				+ "269=0270=96863.86000000271=0.00262000269=0270=96863.66000000271=0.00382000269=0270=96863.21000000271=0.00326000\r\n"
-				+ "269=0270=96863.20000000271=0.00372000269=0270=96767.41000000271=0.00010000269=1270=96909.92000000271=0.00494000\r\n"
-				+ "269=1270=96913.67000000271=0.00284000269=1270=96913.95000000271=0.00439000269=1270=96913.96000000271=0.00491000\r\n"
-				+ "269=1270=96972.00000000271=0.00175000269=1270=96972.60000000271=0.00305000269=1270=96974.01000000271=0.00294000\r\n"
-				+ "269=1270=96998.98000000271=0.00464000269=1270=96998.99000000271=0.00372000269=1270=96999.00000000271=0.00310000\r\n"
+				+ "55=BTCUSDT25044=300920268=20"
+				+ "269=0270=96889.99000000271=0.00562000"
+				+ "269=0270=96889.98000000271=0.00403000"
+				+ "269=0270=96889.43000000271=0.00357000"
+				+ "269=0270=96869.96000000271=0.00152000"
+				+ "269=0270=96869.60000000271=0.00450000"
+				+ "269=0270=96863.86000000271=0.00262000"
+				+ "269=0270=96863.66000000271=0.00382000"
+				+ "269=0270=96863.21000000271=0.00326000"
+				+ "269=0270=96863.20000000271=0.00372000"
+				+ "269=0270=96767.41000000271=0.00010000"
+				+ "269=1270=96909.92000000271=0.00494000"
+				+ "269=1270=96913.67000000271=0.00284000"
+				+ "269=1270=96913.95000000271=0.00439000"
+				+ "269=1270=96913.96000000271=0.00491000"
+				+ "269=1270=96972.00000000271=0.00175000"
+				+ "269=1270=96972.60000000271=0.00305000"
+				+ "269=1270=96974.01000000271=0.00294000"
+				+ "269=1270=96998.98000000271=0.00464000"
+				+ "269=1270=96998.99000000271=0.00372000"
+				+ "269=1270=96999.00000000271=0.00310000"
 				+ "10=105";
 		
 		FixMessageDecoder msg = FixMessageDecoder.newDecoder(BinanceFixDictionary.init(), msgBuff.getBytes(), 0l);
 		binanceFixClient.subscribeBook("BTCUSDT", "", 10);
 		
-		Book book = binanceFixClient.decodeMarketDataSnapshot( msg );
+		Book<BigDecimal,BigDecimal> book = binanceFixClient.decodeMarketDataSnapshot( msg );
 		
 		assertEquals("BTCUSDT", book.getSymbol());
-		assertEquals(5, book.getBidLevels().size());
-		assertEquals(5, book.getAskLevels().size());
+		assertEquals(10, book.getBidLevels().size());
+		assertEquals(10, book.getAskLevels().size());
+		
+		assertTrue( book.getBidLevel(0).getPrice().compareTo(new BigDecimal("96889.99000000"))==0 );
+		assertTrue( book.getBidLevel(1).getPrice().compareTo(new BigDecimal("96889.98000000"))==0 );
+		assertTrue( book.getBidLevel(2).getPrice().compareTo(new BigDecimal("96889.43000000"))==0 );
+		assertTrue( book.getBidLevel(3).getPrice().compareTo(new BigDecimal("96869.96000000"))==0 );
+		assertTrue( book.getBidLevel(4).getPrice().compareTo(new BigDecimal("96869.60000000"))==0 );
+		assertTrue( book.getBidLevel(5).getPrice().compareTo(new BigDecimal("96863.86000000"))==0 );
+		assertTrue( book.getBidLevel(6).getPrice().compareTo(new BigDecimal("96863.66000000"))==0 );
+		assertTrue( book.getBidLevel(7).getPrice().compareTo(new BigDecimal("96863.21000000"))==0 );
+		assertTrue( book.getBidLevel(8).getPrice().compareTo(new BigDecimal("96863.20000000"))==0 );
+		assertTrue( book.getBidLevel(9).getPrice().compareTo(new BigDecimal("96767.41000000"))==0 );
+		
+		assertTrue( book.getAskLevel(0).getPrice().compareTo(new BigDecimal("96909.92000000"))==0 );
+		assertTrue( book.getAskLevel(1).getPrice().compareTo(new BigDecimal("96913.67000000"))==0 );
+		assertTrue( book.getAskLevel(2).getPrice().compareTo(new BigDecimal("96913.95000000"))==0 );
+		assertTrue( book.getAskLevel(3).getPrice().compareTo(new BigDecimal("96913.96000000"))==0 );
+		assertTrue( book.getAskLevel(4).getPrice().compareTo(new BigDecimal("96972.00000000"))==0 );
+		assertTrue( book.getAskLevel(5).getPrice().compareTo(new BigDecimal("96972.60000000"))==0 );
+		assertTrue( book.getAskLevel(6).getPrice().compareTo(new BigDecimal("96974.01000000"))==0 );
+		assertTrue( book.getAskLevel(7).getPrice().compareTo(new BigDecimal("96998.98000000"))==0 );
+		assertTrue( book.getAskLevel(8).getPrice().compareTo(new BigDecimal("96998.99000000"))==0 );
+		assertTrue( book.getAskLevel(9).getPrice().compareTo(new BigDecimal("96999.00000000"))==0 );
 	}
 
 }

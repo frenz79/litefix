@@ -1,10 +1,9 @@
 package com.litefix.connectors;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Book {
+public class Book<P extends Comparable<P>,Q extends Comparable<Q>> {
 
 	private final String requestId;
 	private final String symbol;
@@ -13,8 +12,8 @@ public class Book {
 
 	private long rcvNanoTime;
 	
-	private List<BookLevel> bidLevels = new ArrayList<>();
-	private List<BookLevel> askLevels = new ArrayList<>();
+	private List<BookLevel<P,Q>> bidLevels = new ArrayList<>();
+	private List<BookLevel<P,Q>> askLevels = new ArrayList<>();
 	
 	public Book(String requestId, String symbol, String bookId, int depth) {
 		super();
@@ -24,46 +23,46 @@ public class Book {
 		this.depth = depth;
 	}
 	
-	public static class BookLevel {
-		private BigDecimal price;
-		private BigDecimal size;
+	public static class BookLevel<P extends Comparable<P>,Q extends Comparable<Q>> {
+		private P price;
+		private Q qty;
 		
-		public BookLevel(BigDecimal price, BigDecimal size) {
+		public BookLevel(P price, Q qty) {
 			super();
 			this.price = price;
-			this.size = size;
+			this.qty = qty;
 		}
 
-		public BigDecimal getPrice() {
+		public P getPrice() {
 			return price;
 		}
 
-		public BigDecimal getSize() {
-			return size;
+		public Q getSize() {
+			return qty;
 		}
 
 		@Override
 		public String toString() {
-			return "[ " + price + " | " + size + " ]";
+			return "[ " + price + " | " + qty + " ]";
 		}
 
-		public BookLevel setPrice(BigDecimal price) {
+		public BookLevel<P,Q> setPrice(P price) {
 			this.price = price;
 			return this;
 		}
 
-		public BookLevel setSize(BigDecimal size) {
-			this.size = size;
+		public BookLevel<P,Q> setSize(Q qty) {
+			this.qty = qty;
 			return this;
 		}
 
-		public void setPriceAndSize(BigDecimal price, BigDecimal size) {
+		public void setPriceAndSize(P price, Q qty) {
 			this.price = price;
-			this.size = size;
+			this.qty = qty;
 		}
 	}
 
-	private int findForPrice( BigDecimal price, List<BookLevel> l) {
+	private int findForPrice( P price, List<BookLevel<P,Q>> l) {
 		int size = l.size();
 		for ( int i=0; i<size; i++ ) {
 			if ( price.compareTo(l.get(i).price)==0 ) {
@@ -73,8 +72,8 @@ public class Book {
 		return -1;
 	}
 	
-	public BookLevel findForPrice( BigDecimal price, boolean isBid) {
-		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+	public BookLevel<P,Q> findForPrice( P price, boolean isBid) {
+		List<BookLevel<P,Q>> l = (isBid)?bidLevels:askLevels;
 		int idx = findForPrice(price,l);
 		if ( idx<0 ) {
 			return null;
@@ -82,24 +81,24 @@ public class Book {
 		return l.get(idx);
 	}
 	
-	public List<BookLevel> getBidLevels() {
+	public List<BookLevel<P,Q>> getBidLevels() {
 		return bidLevels;
 	}
 
-	public void setBidLevels(List<BookLevel> bidLevels) {
+	public void setBidLevels(List<BookLevel<P,Q>> bidLevels) {
 		this.bidLevels = bidLevels;
 	}
 
-	public List<BookLevel> getAskLevels() {
+	public List<BookLevel<P,Q>> getAskLevels() {
 		return askLevels;
 	}
 
-	public void setAskLevels(List<BookLevel> askLevels) {
+	public void setAskLevels(List<BookLevel<P,Q>> askLevels) {
 		this.askLevels = askLevels;
 	}
 
-	public boolean delLevel(BigDecimal price, boolean isBid) {
-		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+	public boolean delLevel(P price, boolean isBid) {
+		List<BookLevel<P,Q>> l = (isBid)?bidLevels:askLevels;
 		int idx = findForPrice(price,l);
 		if ( idx<0 ) {
 			return false;
@@ -109,42 +108,54 @@ public class Book {
 	}
 	
 	public boolean delBestLevel(boolean isBid) {
-		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+		List<BookLevel<P,Q>> l = (isBid)?bidLevels:askLevels;
 		if ( l.isEmpty() ) {
 			return  false;
 		}
 		return l.remove(0)!=null;
 	}
 	
-	public void addLevel(BookLevel level, boolean isBid) {
-		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+	public void addLevel(P price, Q qty, boolean isBid) {
+		this.addLevel(new BookLevel<P,Q>(price, qty), isBid);
+	}
+	
+	public void addLevel(BookLevel<P,Q> level, boolean isBid) {
+		List<BookLevel<P,Q>> l = (isBid)?bidLevels:askLevels;
 		int size = l.size();
 		
 		if ( size==0 ) {
 			l.add(level);
+			return;
 		}
 		
-		BigDecimal priceToIns = level.price;
-		
+		P priceToIns = level.price;
 		if (isBid) {
-			// asc
+			// desc
 			for ( int i=0; i<size; i++ ) {
 				if ( priceToIns.compareTo(l.get(i).price)>=0 ) {
 					l.add(i, level);
+					return;
 				}
 			}
+			l.add(level);
 		} else {
-			// desc
+			// asc
 			for ( int i=0; i<size; i++ ) {
 				if ( priceToIns.compareTo(l.get(i).price)<=0 ) {
 					l.add(i, level);
+					return;
 				}
 			}
+			l.add(level);
 		}
 	}
 	
-	public boolean setBestLevel(BookLevel level,boolean isBid) {
-		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+	public boolean setBestLevel(P price, Q qty, boolean isBid) {
+		return setBestLevel( new BookLevel<>(price, qty), isBid );
+	}
+	
+	public boolean setBestLevel(BookLevel<P,Q> level,boolean isBid) {
+		List<BookLevel<P,Q>> l = (isBid)?bidLevels:askLevels;
 		if ( l.isEmpty() ) {
 			return l.add(level);
 		}
@@ -152,31 +163,23 @@ public class Book {
 		return true;
 	}
 	
-	public BookLevel getBestLevel(boolean isBid) {
-		List<BookLevel> l = (isBid)?bidLevels:askLevels;
+	public BookLevel<P,Q> getBestLevel(boolean isBid) {
+		List<BookLevel<P,Q>> l = (isBid)?bidLevels:askLevels;
 		if ( l.isEmpty() ) {
 			return null;
 		}		
 		return l.get(0);
 	}
 	
-	public void addBidLevel(BookLevel level) {
-		bidLevels.add(level);
-	}
-	
-	public void addAskLevel(BookLevel level) {
-		askLevels.add(level);
-	}
-	
-	public BookLevel getLevel(BigDecimal price, boolean isBid) {
+	public BookLevel<P,Q> getLevel(P price, boolean isBid) {
 		return findForPrice(price, isBid);
 	}
 	
-	public BookLevel getBidLevel(int id) {
+	public BookLevel<P,Q> getBidLevel(int id) {
 		return this.bidLevels.get(id);
 	}
 
-	public BookLevel getAskLevel(int id) {
+	public BookLevel<P,Q> getAskLevel(int id) {
 		return this.askLevels.get(id);
 	}
 	

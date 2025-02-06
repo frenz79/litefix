@@ -37,11 +37,11 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	private String apiKey;
 	
 	// Symbol, Book
-	Map<String,Book> lastBookMap = new HashMap<>();
+	Map<String,Book<BigDecimal,BigDecimal>> lastBookMap = new HashMap<>();
 	// RequestId, 
 	private Set<String> tradeSubsMap = new HashSet<>();
 	
-	public abstract void onMarketData( Book m );
+	public abstract void onMarketData( Book<BigDecimal,BigDecimal> m );
 	
 	public abstract void onMarketData( Trade t);
 	
@@ -138,9 +138,9 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	// RCV: 8=FIX.4.49=000021335=W49=SPOT56=SPOTTEST34=252=20250130-18:59:55.088145
 	// 262=338a6a9f-cd55-42fb-a7c0-85aae0602a6455=BTCUSDT25044=10762840268=2
 	// 269=0270=105427.98000000271=0.00276000269=1270=105427.99000000271=0.0036600010=182
-	Book decodeMarketDataSnapshot(FixMessageDecoder decoder) {
+	Book<BigDecimal,BigDecimal> decodeMarketDataSnapshot(FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
-		Book m = this.lastBookMap.get(symbol);
+		Book<BigDecimal,BigDecimal> m = this.lastBookMap.get(symbol);
 		m.setRcvNanoTime(decoder.getRcvNanoTime());
 		
 		GroupDecoder levelsDecoder = decoder.asGroupDecoder(268); // NoMDEntries
@@ -150,7 +150,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 			BigDecimal price = levelsDecoder.at(i).asBigDecimal(270);	// MDEntryPx
 			BigDecimal qty = levelsDecoder.at(i).asBigDecimal(271);		// MDEntrySize
 			
-			BookLevel level = new BookLevel( price,qty );
+			BookLevel<BigDecimal,BigDecimal> level = new BookLevel<>( price,qty );
 			m.addLevel(level, side=='0');
 		}		
 		return m;
@@ -166,9 +166,9 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	8=FIX.4.49=000017835=X49=SPOT56=SPOTTEST34=552=20250201-17:06:39.566566262=1636e032-9077-4fcf-8406-07e185c91187
 	268=1279=1269=0270=102052.00000000271=0.0002300055=BTCUSDT25044=1211833210=209
 	*/		
-	Book decodeBookIncrementalRefresh(String requestId, FixMessageDecoder decoder) {
+	Book<BigDecimal,BigDecimal> decodeBookIncrementalRefresh(String requestId, FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
-		Book cachedBook = lastBookMap.get(symbol);
+		Book<BigDecimal,BigDecimal> cachedBook = lastBookMap.get(symbol);
 		cachedBook.setRcvNanoTime(decoder.getRcvNanoTime());
 		
 		GroupDecoder levelsDecoder = decoder.asGroupDecoder(268); // NoMDEntries
@@ -195,14 +195,14 @@ public abstract class BinanceFixClient extends AbstractConnector {
 				switch (action) {
 				case '0': // New
 					if ( cachedBook.getDepth()==1 ) {
-						cachedBook.setBestLevel(new BookLevel( price,qty ), side=='0');
+						cachedBook.setBestLevel( price, qty, side=='0');
 					} else {
-						cachedBook.addLevel(new BookLevel( price,qty ), side=='0');
+						cachedBook.addLevel( price, qty, side=='0');
 					}
 					break;
 				case '1': // Upd
 					int LastBookUpdateID = levelsDecoder.at(i).asInt(25044);	// LastBookUpdateID
-					BookLevel level = ( cachedBook.getDepth()==1 )?
+					BookLevel<BigDecimal,BigDecimal> level = ( cachedBook.getDepth()==1 )?
 						cachedBook.getBestLevel( side=='0'):cachedBook.findForPrice(price, side=='0');
 					if ( level!=null ) {
 						level.setSize(qty);
@@ -258,12 +258,12 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		session.sendMessage(bookSub);
 		
 		// Send back existing image...if present
-		Book lastBook = this.lastBookMap.get(symbol);		
+		Book<BigDecimal,BigDecimal> lastBook = this.lastBookMap.get(symbol);		
 		if ( lastBook!=null ) {
 			onMarketData(lastBook);
 		} else {
 			this.lastBookMap.put(symbol, 
-				new Book(
+				new Book<BigDecimal,BigDecimal>(
 					requestId
 				,	symbol	// Symbol
 				,	null
@@ -286,7 +286,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		session.sendMessage(bookSub);
 		
 		// Send back existing image...if present
-		Book lastBook = lastBookMap.get(symbol);		
+		Book<BigDecimal,BigDecimal> lastBook = lastBookMap.get(symbol);		
 		if ( lastBook!=null ) {
 			onMarketData(lastBook);
 		}

@@ -3,6 +3,7 @@ package com.litefix.connectors.binance;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
@@ -52,7 +53,7 @@ public class BinanceClient {
 			}
 
 			@Override
-			public void onMarketData(Book m) {
+			public void onMarketData(Book<BigDecimal,BigDecimal> m) {
 				System.out.println(m);
 			}
 			
