@@ -3,9 +3,11 @@ package com.litefix.connectors.binance;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.Signature;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -124,7 +126,9 @@ public abstract class BinanceFixClient extends AbstractConnector {
 				if ( this.tradeSubsMap.contains(requestId) ) {
 					onMarketData( decodeBookIncrementalRefresh( requestId, decoder ) );
 				} else {
-					onMarketData( decodeTradeIncrementalRefresh( requestId, decoder ) );
+					for( Trade t : decodeTradeIncrementalRefresh( requestId, decoder ) ){
+						onMarketData( t );
+					};
 				}
 				break;
 			default:
@@ -215,19 +219,27 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		return cachedBook;
 	}
 	
-	/*
-	8=FIX.4.49=000017735=X49=SPOT56=SPOTTEST34=352=20250202-13:00:40.676613262=af41c78b-b9c0-413e-b978-2606f855acda
-	268=1279=1269=0270=98245.99000000271=0.0042800055=BTCUSDT25044=1271031010=246
-	
-	8=FIX.4.49=000017735=X49=SPOT56=SPOTTEST34=452=20250202-13:00:40.779251262=af41c78b-b9c0-413e-b978-2606f855acda
-	268=1279=1269=1270=98839.28000000271=0.5094200055=BTCUSDT25044=1271031210=003
+	/*	
+	8=FIX.4.49=000020935=X49=SPOT56=SPOTTEST34=352=20250208-10:54:58.011539262=0c1dc6a7-da34-4a01-806e-8bebdf67f2b6
+	268=1279=0269=2270=96010.16000000271=0.0010000055=BTCUSDT1003=35723660=20250208-10:54:58.0110822446=210=069
 	 */
-	Trade decodeTradeIncrementalRefresh(String requestId, FixMessageDecoder decoder) {
+	List<Trade> decodeTradeIncrementalRefresh(String requestId, FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
 		
-		Trade t = new Trade(requestId, symbol);
-		// TODO: code me
-		return t;
+		GroupDecoder tradesDecoder = decoder.asGroupDecoder(268); // NoMDEntries
+		List<Trade> trades = new ArrayList<>(tradesDecoder.getGroupSize());
+		
+		for ( int i=0; i<tradesDecoder.getGroupSize(); i++ ) {			
+			Trade t = new Trade(requestId, symbol);
+			t.setRcvNanoTime(decoder.getRcvNanoTime());
+			t.setTradeId( tradesDecoder.at(i).asString(1003) );
+			t.setPrice( tradesDecoder.at(i).asString(270) );
+			t.setQty( tradesDecoder.at(i).asString(271) );
+			t.setSide( tradesDecoder.at(i).asChar(2446)  );
+			
+			trades.add(t);
+		}
+		return trades;
 	}
 	
 	/*
