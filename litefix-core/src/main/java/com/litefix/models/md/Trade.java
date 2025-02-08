@@ -1,4 +1,4 @@
-package com.litefix.connectors;
+package com.litefix.models.md;
 
 import com.litefix.commons.utils.MathUtils;
 

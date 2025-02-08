@@ -1,16 +1,13 @@
 package com.litefix.connectors.binance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
-import com.litefix.connectors.Book;
-import com.litefix.connectors.Trade;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
+import com.litefix.models.md.Book;
+import com.litefix.models.md.Trade;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;

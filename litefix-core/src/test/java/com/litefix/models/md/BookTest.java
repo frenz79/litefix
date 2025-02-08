@@ -1,4 +1,4 @@
-package com.litefix.connectors;
+package com.litefix.models.md;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

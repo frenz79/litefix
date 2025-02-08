@@ -14,12 +14,12 @@ import java.util.Set;
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.utils.TimeUtils;
 import com.litefix.connectors.AbstractConnector;
-import com.litefix.connectors.Book;
-import com.litefix.connectors.Book.BookLevel;
-import com.litefix.connectors.Trade;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageDecoder.GroupDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.models.md.Book;
+import com.litefix.models.md.Book.BookLevel;
+import com.litefix.models.md.Trade;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.modules.persistence.IPersistence;
@@ -37,6 +37,8 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	private PrivateKey privateKey;
 	private String apiKey;
 	
+	private static final String ENCRYPTION_ALGO = "Ed25519";
+	
 	// Symbol, Book
 	Map<String,Book> lastBookMap = new HashMap<>();
 	// RequestId, 
@@ -50,7 +52,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	public BinanceFixClient start( String privateKey, String apiKey, ClientFixSessionConfig sessionCfg ) throws Exception {
 		initLogging();
 	    this.apiKey = apiKey;
-		this.privateKey = getPrivateKey(privateKey, "Ed25519");
+		this.privateKey = getPrivateKey( privateKey,ENCRYPTION_ALGO );
 			
 		IClientTransport	transport = new ClientSocketTransport( sessionCfg.getDictionary().getBeginString(), sessionCfg.getDictionary().getFieldSep() );		
 		IPersistence<FixMessageEncoder>	persistence = new InMemoryPersistence<FixMessageEncoder>();
@@ -65,12 +67,10 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	}	
 
 	public String calculateSignature(String plainText, PrivateKey privateKey) throws Exception {
-	    Signature privateSignature = Signature.getInstance("Ed25519");
+	    Signature privateSignature = Signature.getInstance(ENCRYPTION_ALGO);
 	    privateSignature.initSign(privateKey);
 	    privateSignature.update(plainText.getBytes(StandardCharsets.UTF_8));
-
 	    byte[] signature = privateSignature.sign();
-
 	    return Base64.getEncoder().encodeToString(signature);
 	}
 	
@@ -123,10 +123,12 @@ public abstract class BinanceFixClient extends AbstractConnector {
 				break;
 			case "X" :
 				String requestId = decoder.asString(262); 	// MDReqID
+			//	Boolean LastFragment = decoder.asBoolean(893);
+				
 				if ( this.tradeSubsMap.contains(requestId) ) {
-					onMarketData( decodeBookIncrementalRefresh( requestId, decoder ) );
+					onMarketData( decodeIncrementalBookRefresh( requestId, decoder ) );
 				} else {
-					for( Trade t : decodeTradeIncrementalRefresh( requestId, decoder ) ){
+					for( Trade t : decodeIncrementalTradeRefresh( requestId, decoder ) ){
 						onMarketData( t );
 					};
 				}
@@ -169,7 +171,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	8=FIX.4.49=000017835=X49=SPOT56=SPOTTEST34=552=20250201-17:06:39.566566262=1636e032-9077-4fcf-8406-07e185c91187
 	268=1279=1269=0270=102052.00000000271=0.0002300055=BTCUSDT25044=1211833210=209
 	*/		
-	Book decodeBookIncrementalRefresh(String requestId, FixMessageDecoder decoder) {
+	Book decodeIncrementalBookRefresh(String requestId, FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
 		Book cachedBook = lastBookMap.get(symbol);
 		cachedBook.setRcvNanoTime(decoder.getRcvNanoTime());
@@ -223,7 +225,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	8=FIX.4.49=000020935=X49=SPOT56=SPOTTEST34=352=20250208-10:54:58.011539262=0c1dc6a7-da34-4a01-806e-8bebdf67f2b6
 	268=1279=0269=2270=96010.16000000271=0.0010000055=BTCUSDT1003=35723660=20250208-10:54:58.0110822446=210=069
 	 */
-	List<Trade> decodeTradeIncrementalRefresh(String requestId, FixMessageDecoder decoder) {
+	List<Trade> decodeIncrementalTradeRefresh(String requestId, FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
 		
 		GroupDecoder tradesDecoder = decoder.asGroupDecoder(268); // NoMDEntries

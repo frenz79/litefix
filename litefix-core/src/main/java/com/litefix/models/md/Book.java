@@ -1,4 +1,4 @@
-package com.litefix.connectors;
+package com.litefix.models.md;
 
 import java.util.ArrayList;
 import java.util.List;
