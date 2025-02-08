@@ -148,7 +148,7 @@ public class FixMessageEncoder extends AbstractEncoderDecoder {
 	}
 	
 	private void setChecksum( final StringBuilder strBld ) {
-		int checksum = MathUtils.calcChecksum(strBld);		
+		int checksum = MathUtils.calcFixChecksum(strBld);		
 		strBld.append("10")
 			.append('=')
 			.append(NumbersCache.toPaddedString(checksum))

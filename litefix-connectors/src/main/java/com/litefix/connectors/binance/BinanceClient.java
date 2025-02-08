@@ -53,7 +53,7 @@ public class BinanceClient {
 			}
 
 			@Override
-			public void onMarketData(Book<BigDecimal,BigDecimal> m) {
+			public void onMarketData(Book m) {
 				System.out.println(m);
 			}
 			

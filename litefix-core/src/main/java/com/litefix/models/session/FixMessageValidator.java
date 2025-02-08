@@ -73,7 +73,7 @@ public class FixMessageValidator implements IFixMessageValidator {
 		}
 		
 		int buffOffset = from + len;
-		int checksum = MathUtils.calcChecksum(buffer, from, buffOffset-CRC_BODY_FIELD_SIZE );
+		int checksum = MathUtils.calcFixChecksum(buffer, from, buffOffset-CRC_BODY_FIELD_SIZE );
 
 		if ( checksum!=ByteUtils.charsToInt(buffer[buffOffset-4], buffer[buffOffset-3],	buffer[buffOffset-2])){
 			System.out.println("Garbage detected...Bad CRC");

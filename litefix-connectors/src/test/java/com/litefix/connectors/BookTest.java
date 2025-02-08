@@ -9,7 +9,7 @@ class BookTest {
 
 	@Test
 	void addLevelTest() {
-		Book<Long,Long> b = new Book<>("", "", "", 5);
+		Book b = new Book("", "", "", 5);
 		
 		b.addLevel( 10l, 1l, true );
 		b.addLevel( 11l, 1l, true );
@@ -27,16 +27,16 @@ class BookTest {
 		assertEquals(5, b.getBidLevels().size());
 		
 		// Check for best
-		assertTrue( b.getBestLevel(true).getPrice().compareTo(14l)==0 );
-		assertTrue( b.getBestLevel(false).getPrice().compareTo(15l)==0 );
+		assertTrue( b.getBestLevel(true).getPrice()==14l );
+		assertTrue( b.getBestLevel(false).getPrice()==15l );
 		// ..and the tail
-		assertTrue( b.getBidLevel(4).getPrice().compareTo(10l)==0 );
-		assertTrue( b.getAskLevel(4).getPrice().compareTo(19l)==0 );
+		assertTrue( b.getBidLevel(4).getPrice()==10l );
+		assertTrue( b.getAskLevel(4).getPrice()==19l );
 	}
 		
 	@Test
 	void addLevelTest2() {
-		Book<Long,Long> b = new Book<>("", "", "", 5);
+		Book b = new Book("", "", "", 5);
 		b.addLevel( 12l, 1l, true );
 		b.addLevel( 11l, 1l, true );
 		b.addLevel( 10l, 1l, true );
@@ -53,11 +53,11 @@ class BookTest {
 		assertEquals(5, b.getBidLevels().size());
 		
 		// Check for best
-		assertTrue( b.getBestLevel(true).getPrice().compareTo(14l)==0 );
-		assertTrue( b.getBestLevel(false).getPrice().compareTo(15l)==0 );
+		assertTrue( b.getBestLevel(true).getPrice()==14l );
+		assertTrue( b.getBestLevel(false).getPrice()==15l );
 		// ..and the tail
-		assertTrue( b.getBidLevel(4).getPrice().compareTo(10l)==0 );
-		assertTrue( b.getAskLevel(4).getPrice().compareTo(19l)==0 );
+		assertTrue( b.getBidLevel(4).getPrice()==10l);
+		assertTrue( b.getAskLevel(4).getPrice()==19l);
 	}
 
 }

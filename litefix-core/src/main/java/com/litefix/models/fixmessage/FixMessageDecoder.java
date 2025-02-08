@@ -77,6 +77,10 @@ public class FixMessageDecoder extends AbstractEncoderDecoder {
 		public int asInt(int fieldId) {
 			return getTagValueAsInt(msgBuff, msgBuffFrom+groupOffset, msgBuffLen-groupOffset, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), 0).getLeft();
 		}
+		
+		public String asString(int fieldId) {
+			return getTagValue(msgBuff, msgBuffFrom+groupOffset, msgBuffLen-groupOffset, fieldId, dictionary.getFieldSep(), dictionary.getDecimalSep(), occurrence).getLeft();
+		}
 	}
 	
 	public boolean isEqual( int fieldId, byte[] buffCompare ) {

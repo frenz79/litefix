@@ -25,7 +25,7 @@ class BinanceFixClientTest {
 	private BinanceFixClient binanceFixClient = new BinanceFixClient() {
 
 		@Override
-		public void onMarketData(Book<BigDecimal,BigDecimal> m) {
+		public void onMarketData(Book m) {
 			// TODO Auto-generated method stub
 		}
 		
@@ -37,7 +37,7 @@ class BinanceFixClientTest {
 		@Override
 		public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {
 			this.lastBookMap.put(symbol, 
-					new Book<BigDecimal,BigDecimal>(
+					new Book(
 						requestId
 					,	symbol	// Symbol
 					,	null
@@ -110,33 +110,33 @@ class BinanceFixClientTest {
 		FixMessageDecoder msg = FixMessageDecoder.newDecoder(BinanceFixDictionary.init(), msgBuff.getBytes(), 0l);
 		binanceFixClient.subscribeBook("BTCUSDT", "", 10);
 		
-		Book<BigDecimal,BigDecimal> book = binanceFixClient.decodeMarketDataSnapshot( msg );
+		Book book = binanceFixClient.decodeMarketDataSnapshot( msg );
 		
 		assertEquals("BTCUSDT", book.getSymbol());
 		assertEquals(10, book.getBidLevels().size());
 		assertEquals(10, book.getAskLevels().size());
 		
-		assertTrue( book.getBidLevel(0).getPrice().compareTo(new BigDecimal("96889.99000000"))==0 );
-		assertTrue( book.getBidLevel(1).getPrice().compareTo(new BigDecimal("96889.98000000"))==0 );
-		assertTrue( book.getBidLevel(2).getPrice().compareTo(new BigDecimal("96889.43000000"))==0 );
-		assertTrue( book.getBidLevel(3).getPrice().compareTo(new BigDecimal("96869.96000000"))==0 );
-		assertTrue( book.getBidLevel(4).getPrice().compareTo(new BigDecimal("96869.60000000"))==0 );
-		assertTrue( book.getBidLevel(5).getPrice().compareTo(new BigDecimal("96863.86000000"))==0 );
-		assertTrue( book.getBidLevel(6).getPrice().compareTo(new BigDecimal("96863.66000000"))==0 );
-		assertTrue( book.getBidLevel(7).getPrice().compareTo(new BigDecimal("96863.21000000"))==0 );
-		assertTrue( book.getBidLevel(8).getPrice().compareTo(new BigDecimal("96863.20000000"))==0 );
-		assertTrue( book.getBidLevel(9).getPrice().compareTo(new BigDecimal("96767.41000000"))==0 );
-		
-		assertTrue( book.getAskLevel(0).getPrice().compareTo(new BigDecimal("96909.92000000"))==0 );
-		assertTrue( book.getAskLevel(1).getPrice().compareTo(new BigDecimal("96913.67000000"))==0 );
-		assertTrue( book.getAskLevel(2).getPrice().compareTo(new BigDecimal("96913.95000000"))==0 );
-		assertTrue( book.getAskLevel(3).getPrice().compareTo(new BigDecimal("96913.96000000"))==0 );
-		assertTrue( book.getAskLevel(4).getPrice().compareTo(new BigDecimal("96972.00000000"))==0 );
-		assertTrue( book.getAskLevel(5).getPrice().compareTo(new BigDecimal("96972.60000000"))==0 );
-		assertTrue( book.getAskLevel(6).getPrice().compareTo(new BigDecimal("96974.01000000"))==0 );
-		assertTrue( book.getAskLevel(7).getPrice().compareTo(new BigDecimal("96998.98000000"))==0 );
-		assertTrue( book.getAskLevel(8).getPrice().compareTo(new BigDecimal("96998.99000000"))==0 );
-		assertTrue( book.getAskLevel(9).getPrice().compareTo(new BigDecimal("96999.00000000"))==0 );
+		assertEquals(968899900000000l, book.getBidLevel(0).getPrice());
+		assertEquals(968899800000000l, book.getBidLevel(1).getPrice());
+		assertEquals(968894300000000l, book.getBidLevel(2).getPrice());
+		assertEquals(968699600000000l, book.getBidLevel(3).getPrice());
+		assertEquals(968696000000000l, book.getBidLevel(4).getPrice());
+		assertEquals(968638600000000l, book.getBidLevel(5).getPrice());
+		assertEquals(968636600000000l, book.getBidLevel(6).getPrice());
+		assertEquals(968632100000000l, book.getBidLevel(7).getPrice());
+		assertEquals(968632000000000l, book.getBidLevel(8).getPrice());
+		assertEquals(967674100000000l, book.getBidLevel(9).getPrice());
+												  
+		assertEquals(969099200000000l, book.getAskLevel(0).getPrice());
+		assertEquals(969136700000000l, book.getAskLevel(1).getPrice());
+		assertEquals(969139500000000l, book.getAskLevel(2).getPrice());
+		assertEquals(969139600000000l, book.getAskLevel(3).getPrice());
+		assertEquals(969720000000000l, book.getAskLevel(4).getPrice());
+		assertEquals(969726000000000l, book.getAskLevel(5).getPrice());
+		assertEquals(969740100000000l, book.getAskLevel(6).getPrice());
+		assertEquals(969989800000000l, book.getAskLevel(7).getPrice());
+		assertEquals(969989900000000l, book.getAskLevel(8).getPrice());
+		assertEquals(969990000000000l, book.getAskLevel(9).getPrice());
 	}
 
 }
