@@ -51,8 +51,6 @@ public class BinanceFixDictionary {
 		//	.addHeader(52, "HopCompID", true, FieldType.UTC_TIMESTAMP)
 		//	.addHeader(52, "HopSendingTime", true, FieldType.UTC_TIMESTAMP)
 		//	.addHeader(52, "HopRefID", true, FieldType.UTC_TIMESTAMP)
-			
-
 		;
 		
 		// Logon
@@ -72,7 +70,6 @@ public class BinanceFixDictionary {
 					new FixMessageFieldTemplate(385, "MsgDirection", false, FieldType.CHAR)
 				})
 			.addField(464, "TestMessageIndicator", false, FieldType.BOOLEAN)
-
 			
 		;
 		// Logout
@@ -137,12 +134,13 @@ public class BinanceFixDictionary {
 		// New Order - Single
 		dictionary.register("D")
 			.addField(  11, "ClOrdID", true, FieldType.STRING)
-			.addField(  21, "HandlInst", true, FieldType.CHAR)
 			.addField(  54, "Side", true, FieldType.CHAR)
 			.addField(  55, "Symbol", true, FieldType.STRING)
-			.addField(  60, "TransactTime", true, FieldType.UTC_TIMESTAMP)
-			.addField(  38, "OrderQty", true, FieldType.DECIMAL)
+			.addField(  38, "OrderQty", false, FieldType.DECIMAL)
 			.addField(  40, "OrdType", true, FieldType.CHAR)
+			.addField(  44, "Price", true, FieldType.DECIMAL)
+			.addField(  59, "TimeInForce", false, FieldType.CHAR)
+			.addField( 111, "MaxFloor", false, FieldType.DECIMAL)
 		;	
 		
 		return dictionary;

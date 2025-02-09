@@ -6,8 +6,8 @@ import com.litefix.models.fixmessage.FixMessageDecoder;
 
 public interface IFixSessionListener {
 
-	public void onLogout(FixMessageDecoder decoder);
-	public void onLogon(FixMessageDecoder decoder, boolean result) throws SessionRejectMessageException,BusinessRejectMessageException;
+	public void onLogout(FixMessageDecoder decoder, AbstractFixSession session);
+	public void onLogon(FixMessageDecoder decoder, AbstractFixSession session, boolean result) throws SessionRejectMessageException,BusinessRejectMessageException;
 
 	public void onConnect(boolean upOrDown);
 	

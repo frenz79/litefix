@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.models.session.AbstractFixSession;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.IFixSessionListener;
@@ -64,12 +65,12 @@ public class Test_1B_E extends AbstractTest {
 			.withSessionListener( new IFixSessionListener() {
 
 				@Override
-				public void onLogout(FixMessageDecoder decoder) {
+				public void onLogout(FixMessageDecoder decoder, AbstractFixSession s) {
 					System.out.println("onLogout");
 				}
 
 				@Override
-				public void onLogon(FixMessageDecoder decoder, boolean result)	throws SessionRejectMessageException {
+				public void onLogon(FixMessageDecoder decoder, AbstractFixSession s, boolean result)	throws SessionRejectMessageException {
 					System.out.println("onLogon");
 				}
 

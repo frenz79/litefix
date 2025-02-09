@@ -18,8 +18,11 @@ import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageDecoder.GroupDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.md.Book;
+import com.litefix.models.md.Order;
 import com.litefix.models.md.Book.BookLevel;
 import com.litefix.models.md.Trade;
+import com.litefix.models.md.enums.OrderType;
+import com.litefix.models.session.AbstractFixSession;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.modules.persistence.IPersistence;
@@ -33,9 +36,11 @@ import com.litefix.modules.transport.IClientTransport;
  */
 public abstract class BinanceFixClient extends AbstractConnector {
 	
-	private ClientFixSession session;
+	private ClientFixSession sessionInfo;
+	private ClientFixSession sessionTrx;
 	private PrivateKey privateKey;
 	private String apiKey;
+	private final BinanceFixMapper mapper;
 	
 	private static final String ENCRYPTION_ALGO = "Ed25519";
 	
@@ -47,22 +52,37 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	public abstract void onMarketData( Book m );
 	
 	public abstract void onMarketData( Trade t);
+		
+	public BinanceFixClient(BinanceFixMapper mapper) {
+		this.mapper = mapper;
+	}
 	
-	
-	public BinanceFixClient start( String privateKey, String apiKey, ClientFixSessionConfig sessionCfg ) throws Exception {
+	public BinanceFixClient start( String privateKey, String apiKey, ClientFixSessionConfig sessionInfoCfg, ClientFixSessionConfig sessionTrxCfg ) throws Exception {
 		initLogging();
 	    this.apiKey = apiKey;
 		this.privateKey = getPrivateKey( privateKey,ENCRYPTION_ALGO );
-			
-		IClientTransport	transport = new ClientSocketTransport( sessionCfg.getDictionary().getBeginString(), sessionCfg.getDictionary().getFieldSep() );		
-		IPersistence<FixMessageEncoder>	persistence = new InMemoryPersistence<FixMessageEncoder>();
-			
-		session = (ClientFixSession) new ClientFixSession( transport, persistence, sessionCfg )
-		.withAllMessagesListener( this )
-		.withSessionListener( this )
-		.withRetransmissionInterceptor( null );
 		
-		session.doConnect( true, true );
+		if ( sessionInfoCfg!=null ) {
+			IClientTransport	transport = new ClientSocketTransport( sessionInfoCfg.getDictionary().getBeginString(), sessionInfoCfg.getDictionary().getFieldSep() );		
+			IPersistence<FixMessageEncoder>	persistence = new InMemoryPersistence<FixMessageEncoder>();
+
+			sessionInfo = (ClientFixSession) new ClientFixSession( transport, persistence, sessionInfoCfg )
+			.withAllMessagesListener( this )
+			.withSessionListener( this )
+			.withRetransmissionInterceptor( null );
+			sessionInfo.doConnect( true, true );
+		}
+		
+		if ( sessionTrxCfg!=null ) {
+			IClientTransport	transport = new ClientSocketTransport( sessionInfoCfg.getDictionary().getBeginString(), sessionInfoCfg.getDictionary().getFieldSep() );		
+			IPersistence<FixMessageEncoder>	persistence = new InMemoryPersistence<FixMessageEncoder>();
+
+			sessionTrx = (ClientFixSession) new ClientFixSession( transport, persistence, sessionTrxCfg )
+			.withAllMessagesListener( this )
+			.withSessionListener( this )
+			.withRetransmissionInterceptor( null );
+			sessionTrx.doConnect( true, true );
+		}
 		return this;
 	}	
 
@@ -86,7 +106,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		SendingTime (52) 
 	 **/
 	@Override
-	public FixMessageEncoder beforeMessageSnd(FixMessageEncoder encoder) {
+	public FixMessageEncoder beforeMessageSnd(FixMessageEncoder encoder, AbstractFixSession session) {
 		if ( !encoder.getMsgType().equals("A") ) {
 			return encoder;
 		}
@@ -116,7 +136,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	}
 	
 	@Override
-	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException {
+	public void onMessageRcv(FixMessageDecoder decoder, AbstractFixSession session) throws BusinessRejectMessageException {
 		switch(decoder.getMsgType()) {
 			case "W" :
 				onMarketData( decodeMarketDataSnapshot( decoder ) );
@@ -132,6 +152,12 @@ public abstract class BinanceFixClient extends AbstractConnector {
 						onMarketData( t );
 					};
 				}
+				break;
+			case "3" :
+				System.out.println("REJECT RECEIVED");
+				break;
+			case "8" :
+				System.out.println("EXECUTION REPORT RECEIVED");
 				break;
 			default:
 				System.out.println("Unsupported onMessageRcv() > "+decoder.getMsgType());
@@ -253,7 +279,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	8=FIX.4.4|9=127|35=V|49=TRADER1|56=SPOT|34=7|52=20241122-06:17:14.443822|262=DEPTH_STREAM|263=1|264=10|266=Y|146=1|55=BTCUSDT|267=2|269=0|269=1|10=111|
 	*/
 	public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {		
-		FixMessageEncoder bookSub = session.newEncoder("V")
+		FixMessageEncoder bookSub = sessionInfo.newEncoder("V")
 		.set(262, requestId )	// MDReqID
 		.set(263, '1')	// SubscriptionRequestType
 		.set(264, bookLevels) // MarketDepth
@@ -268,7 +294,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		
 		this.tradeSubsMap.add(requestId);
 		
-		session.sendMessage(bookSub);
+		sessionInfo.sendMessage(bookSub);
 		
 		// Send back existing image...if present
 		Book lastBook = this.lastBookMap.get(symbol);		
@@ -287,7 +313,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	}
 	
 	public BinanceFixClient subscribeTrades(String symbol, String requestId) {		
-		FixMessageEncoder bookSub = session.newEncoder("V")
+		FixMessageEncoder bookSub = sessionInfo.newEncoder("V")
 		.set(262, requestId )	// MDReqID
 		.set(263, '1')	// SubscriptionRequestType
 		.set(264, 1) // MarketDepth
@@ -296,13 +322,103 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		.set(267, 1) // NoMDEntryTypes
 		.set(267, 269, '2') // trades
 		;
-		session.sendMessage(bookSub);
+		sessionInfo.sendMessage(bookSub);
 		
 		// Send back existing image...if present
 		Book lastBook = lastBookMap.get(symbol);		
 		if ( lastBook!=null ) {
 			onMarketData(lastBook);
 		}
+		return this;
+	}
+	
+	/*
+	 11	ClOrdID	STRING	Y	ClOrdID to be assigned to the order.
+38	OrderQty	QTY	N	Quantity of the order
+40	OrdType	CHAR	Y	See the table to understand supported order types and the required fields to use them.
+
+Possible values:
+1 - MARKET
+2 - LIMIT
+3 - STOP
+4 - STOP_LIMIT
+
+18	ExecInst	CHAR	N	Possible values:
+
+6 - PARTICIPATE_DONT_INITIATE
+44	Price	PRICE	N	Price of the order
+54	Side	CHAR	Y	Side of the order.
+
+Possible values:
+
+1 - BUY
+
+2 - SELL
+55	Symbol	STRING	Y	Symbol to place the order on.
+59	TimeInForce	CHAR	N	Possible values:
+
+1 - GOOD_TILL_CANCEL
+
+3 - IMMEDIATE_OR_CANCEL
+
+4 - FILL_OR_KILL
+111	MaxFloor	QTY	N	Used for iceberg orders, this specifies the visible quantity of the order on the book.
+152	CashOrderQty	QTY	N	Quantity of the order specified in the quote asset units, for reverse market orders.
+847	TargetStrategy	INT	N	The value cannot be less than 1000000.
+7940	StrategyID	INT	N	
+25001	SelfTradePreventionMode	CHAR	N	Possible values:
+
+1 - NONE
+
+2 - EXPIRE_TAKER
+
+3 - EXPIRE_MAKER
+
+4 - EXPIRE_BOTH
+1100	TriggerType	CHAR	N	Possible values: 4 - PRICE_MOVEMENT
+1101	TriggerAction	CHAR	N	Possible values:
+
+1 - ACTIVATE
+1102	TriggerPrice	PRICE	N	Activation price for contingent orders. See table
+1107	TriggerPriceType	CHAR	N	Possible values:
+
+2 - LAST_TRADE
+1109	TriggerPriceDirection	CHAR	N	Used to differentiate between StopLoss and TakeProfit orders. See table.
+
+Possible values:
+
+U - TRIGGER_IF_THE_PRICE_OF_THE_SPECIFIED_TYPE_GOES_UP_TO_OR_THROUGH_THE_SPECIFIED_TRIGGER_PRICE
+
+D - TRIGGER_IF_THE_PRICE_OF_THE_SPECIFIED_TYPE_GOES_DOWN_TO_OR_THROUGH_THE_SPECIFIED_TRIGGER_PRICE
+25009	TriggerTrailingDeltaBips	INT	N	Provide to create trailing orders.
+25032	SOR	BOOLEAN	N	Whether to activate SOR for this order. 
+	 */
+	
+	// 8=FIX.4.4|9=114|35=D|34=2|49=qNXO12fH|52=20240611-09:01:46.228|56=SPOT|11=1718096506197867067|
+	// 38=5|40=2|44=10|54=1|55=LTCBNB|59=4|10=016|
+	public BinanceFixClient sendNewOrder(Order order) {
+		FixMessageEncoder newOrd = sessionTrx.newEncoder("D")
+				.set(11, order.getOrderId() )	// ClOrdID
+				.set(38, order.getQty())	// OrderQty
+				.set(40, mapper.map(order.getOrderType())) // OrdType
+				.set(54, mapper.map(order.getSide())) // Side
+				.set(55, order.getSymbol()) // Symbol
+				;
+		if ( OrderType.MARKET.equals(order.getOrderType() ) ) {
+			// Required 38, 152
+		} else {
+				
+			if ( order.getVisibleQty()>0 && order.getVisibleQty()!=order.getQty() ) {
+				newOrd.set(111, order.getVisibleQty()); // MaxFloor
+			}		
+			if ( order.getTimeInForce()!=null ) {
+				newOrd.set(59, mapper.map(order.getTimeInForce())); // TimeInForce
+			}
+			if ( order.getPrice()>0 ) {
+				newOrd.set(44, order.getPrice()); // Price
+			}
+		}
+		sessionTrx.sendMessage(newOrd);
 		return this;
 	}
 }

@@ -19,6 +19,7 @@ import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.models.session.AbstractFixSession;
 import com.litefix.models.session.IFixMessageListener;
 import com.litefix.models.session.IFixSessionListener;
 import com.litefix.models.session.IRetransmissionInterceptor;
@@ -31,17 +32,17 @@ public abstract class AbstractConnector implements IFixMessageListener, IFixSess
 	}
 	
 	@Override
-	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException {
+	public void onMessageRcv(FixMessageDecoder decoder, AbstractFixSession session) throws BusinessRejectMessageException {
 		System.out.println("onmessage > "+decoder);
 	}
 
 	@Override
-	public void onLogout(FixMessageDecoder decoder) {
+	public void onLogout(FixMessageDecoder decoder, AbstractFixSession session ) {
 		System.out.println("onLogout > "+decoder);
 	}
 
 	@Override
-	public void onLogon(FixMessageDecoder decoder, boolean result)
+	public void onLogon(FixMessageDecoder decoder, AbstractFixSession session, boolean result)
 			throws SessionRejectMessageException, BusinessRejectMessageException {
 		System.out.println("onLogon > "+decoder);
 	}

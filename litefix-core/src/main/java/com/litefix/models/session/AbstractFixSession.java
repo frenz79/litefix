@@ -214,7 +214,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 		default:
 			IFixMessageListener listener = getMessageListener(decoder.getMsgType());
 			if ( listener!=null ) {
-				listener.onMessageRcv(decoder);
+				listener.onMessageRcv(decoder, this);
 			} else {
 				throw new SessionRejectMessageException(
 						decoder.getSeqNum(),
@@ -230,12 +230,12 @@ public abstract class AbstractFixSession implements ITransportListener{
 	// 35=A
 	private void handleLogonResp(FixMessageDecoder decoder) throws SessionRejectMessageException, BusinessRejectMessageException {
 		sessionSM.logon(true);
-		getSessionListener().onLogon(decoder, true);
+		getSessionListener().onLogon(decoder, this, true);
 	}
 	// 35=5
 	private void handleLogout(FixMessageDecoder decoder) {
 		sessionSM.logon(false);
-		getSessionListener().onLogout(decoder);
+		getSessionListener().onLogout(decoder, this);
 	}
 	// 35=0
 	private void handleHeartbeat(FixMessageDecoder decoder) {
@@ -346,12 +346,12 @@ public abstract class AbstractFixSession implements ITransportListener{
 	
 	// To be overridden to put some data just before CRC calculation and send operation.
 	// Used for example in crypto exchanges like Binance to set RawData header field.
-	abstract FixMessageEncoder beforeSend( FixMessageEncoder enc );
+	abstract FixMessageEncoder beforeSend( FixMessageEncoder enc, AbstractFixSession session );
 	
 	public void sendMessage( FixMessageEncoder enc ) {	
 		acquireLock( wOutLock );
 		try {
-			FixMessageEncoder toBeSent = beforeSend( fillHeaderFields(enc, -1) );
+			FixMessageEncoder toBeSent = beforeSend( fillHeaderFields(enc, -1), this );
 			if ( toBeSent!=null ) {
 				byte[] outMsg = toBeSent.build();
 				if ( send(outMsg) ) {
@@ -460,5 +460,9 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	public ClientFixSessionConfig getSessionConfig() {
 		return sessionConfig;
+	}
+	
+	public Object getCustomAttribute( String k ) {
+		return sessionConfig.getCustomAttributes().get(k);
 	}
 }

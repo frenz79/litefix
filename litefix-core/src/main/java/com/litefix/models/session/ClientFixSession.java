@@ -102,10 +102,10 @@ public class ClientFixSession extends AbstractFixSession {
 	}
 
 	@Override
-	FixMessageEncoder beforeSend(FixMessageEncoder encoder) {
+	FixMessageEncoder beforeSend(FixMessageEncoder encoder, AbstractFixSession session) {
 		IFixMessageListener listener = getMessageListener(encoder.getMsgType());
 		if ( listener!=null ) {
-			return listener.beforeMessageSnd(encoder);
+			return listener.beforeMessageSnd(encoder, session);
 		}
 		return encoder;
 	}

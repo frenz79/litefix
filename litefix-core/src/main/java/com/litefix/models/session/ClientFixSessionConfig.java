@@ -2,7 +2,9 @@ package com.litefix.models.session;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.litefix.models.fixmessage.FixMessageDictionary;
 
@@ -24,6 +26,8 @@ public class ClientFixSessionConfig {
 	
 	private boolean enableSSL = false;
 	private SSLSettings sslSettings;
+	
+	private Map<String,Object> customAttributes = new HashMap<>();
 	
 	public static class FixServerHost {
 		private final String name;
@@ -148,6 +152,19 @@ public class ClientFixSessionConfig {
 				+ Arrays.toString(memTargetCompIdBytes) + ", heartBtInt=" + heartBtInt + ", encryptMethod="
 				+ encryptMethod + ", resetSeqNumFlag=" + resetSeqNumFlag + ", serverHosts=" + serverHosts
 				+ ", dictionary=" + dictionary + ", enableSSL=" + enableSSL + ", sslSettings=" + sslSettings + "]";
+	}
+
+	public Map<String, Object> getCustomAttributes() {
+		return customAttributes;
+	}
+
+	public void setCustomAttributes(Map<String, Object> customAttributes) {
+		this.customAttributes = customAttributes;
+	}
+
+	public ClientFixSessionConfig setCustomAttributes(String k, Object v) {
+		this.customAttributes.put(k, v);
+		return this;
 	}	
 	
 }

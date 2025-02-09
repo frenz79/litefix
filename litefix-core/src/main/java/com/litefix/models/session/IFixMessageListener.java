@@ -6,7 +6,7 @@ import com.litefix.models.fixmessage.FixMessageEncoder;
 
 public interface IFixMessageListener {
 
-	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException;
+	public void onMessageRcv(FixMessageDecoder decoder, AbstractFixSession session) throws BusinessRejectMessageException;
 	
-	public default FixMessageEncoder beforeMessageSnd(FixMessageEncoder encoder) {return encoder;};
+	public default FixMessageEncoder beforeMessageSnd(FixMessageEncoder encoder, AbstractFixSession session) {return encoder;};
 }

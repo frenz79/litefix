@@ -9,7 +9,12 @@ import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.md.Book;
+import com.litefix.models.md.Order;
 import com.litefix.models.md.Trade;
+import com.litefix.models.md.enums.OrderType;
+import com.litefix.models.md.enums.Side;
+import com.litefix.models.md.enums.TimeInForce;
+import com.litefix.models.session.AbstractFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;
 
@@ -18,11 +23,14 @@ public class BinanceClient {
 	private static final String HOST_MARKET_DATA_PROD = "fix-md.binance.com";
 	private static final String HOST_MARKET_DATA_TEST = "fix-md.testnet.binance.vision";
 	
-	private String getBinanceHost( String env ) {
+	private static final String HOST_MARKET_ORDERS_PROD = "fix-oe.binance.com";
+	private static final String HOST_MARKET_ORDERS_TEST = "fix-oe.testnet.binance.vision";
+	
+	private String getBinanceHost( String env, boolean isInfo ) {
 		if ("prod".equalsIgnoreCase(env)){
-			return HOST_MARKET_DATA_PROD;
+			return isInfo?HOST_MARKET_DATA_PROD:HOST_MARKET_ORDERS_PROD;
 		}
-		return HOST_MARKET_DATA_TEST;
+		return isInfo?HOST_MARKET_DATA_TEST:HOST_MARKET_ORDERS_TEST;
 	}
 	
 	private static final String SSL_CERT_PROD = "src\\main\\resources\\ssl\\binance\\binance.jks";
@@ -38,17 +46,29 @@ public class BinanceClient {
 	private final BinanceFixClient fixClient;
 		
 	public BinanceClient( String binanceEnv, String apiKey, String privateKey ) throws Exception{
-		this.fixClient = new BinanceFixClient() {
+		this.fixClient = new BinanceFixClient( new BinanceFixMapper() ) {
 			@Override
-			public void onLogon(FixMessageDecoder decoder, boolean result)
+			public void onLogon(FixMessageDecoder decoder, AbstractFixSession session, boolean result)
 					throws SessionRejectMessageException, BusinessRejectMessageException {
 				String symbol = "BTCUSDT";
 				
-				System.out.println("Subscribing Book for: " + symbol);
-				subscribeBook(symbol, UUID.randomUUID().toString(), 1000);
-				
-				System.out.println("Subscribing Trades for: " + symbol);
-				subscribeTrades(symbol, UUID.randomUUID().toString());
+				if ( (Boolean)session.getCustomAttribute("SESSION_INFO") ) {
+					System.out.println("Subscribing Book for: " + symbol);
+					subscribeBook(symbol, UUID.randomUUID().toString(), 1000);
+			
+					System.out.println("Subscribing Trades for: " + symbol);
+					subscribeTrades(symbol, UUID.randomUUID().toString());
+				} else {
+					Order order = new Order()
+						.setOrderId(UUID.randomUUID().toString())
+						.setOrderType(OrderType.MARKET)
+						.setQty(1L)
+						.setSide(Side.BUY)
+						.setSymbol(symbol)
+						.setTimeInForce(TimeInForce.FILL_OR_KILL)
+						;
+					sendNewOrder( order );
+				}
 			}
 
 			@Override
@@ -57,17 +77,17 @@ public class BinanceClient {
 			}
 			
 			@Override
-			public void onMarketData(Trade m) {
-				System.out.println(m);
+			public void onMarketData(Trade t) {
+				System.out.println(t);
 			}
 		};
 		
-		ClientFixSessionConfig sessionCfg = new ClientFixSessionConfig()
-				.setSenderCompId( "SPOTTEST" )
+		ClientFixSessionConfig sessionInfoCfg = new ClientFixSessionConfig()
+				.setSenderCompId( "SPOT-INF" )
 				.setTargetCompId( "SPOT" )
 				.setHeartBtInt( 30 )
 				.setResetSeqNumFlag('Y')
-				.addServer(getBinanceHost(binanceEnv), 9000)
+				.addServer(getBinanceHost(binanceEnv, true), 9000)
 				.enableSSL( new SSLSettings()
 					.setKeyStoreCert( getBinanceSSLCert(binanceEnv) )
 					.setTrustStoreCert( getBinanceSSLCert(binanceEnv) )
@@ -75,9 +95,26 @@ public class BinanceClient {
 					.setTrustStorePwd("password")
 					.setUseInsecureTrustManager(true)
 				)
-				.setDictionary( BinanceFixDictionary.init() );
+				.setDictionary( BinanceFixDictionary.init() )
+				.setCustomAttributes("SESSION_INFO", Boolean.TRUE);
 		
-		this.fixClient.start(privateKey, apiKey, sessionCfg);
+		ClientFixSessionConfig sessionTrxCfg = new ClientFixSessionConfig()
+				.setSenderCompId( "SPOT-TRX" )
+				.setTargetCompId( "SPOT" )
+				.setHeartBtInt( 30 )
+				.setResetSeqNumFlag('Y')
+				.addServer(getBinanceHost(binanceEnv, false), 9000)
+				.enableSSL( new SSLSettings()
+					.setKeyStoreCert( getBinanceSSLCert(binanceEnv) )
+					.setTrustStoreCert( getBinanceSSLCert(binanceEnv) )
+					.setKeyStorePwd("password")
+					.setTrustStorePwd("password")
+					.setUseInsecureTrustManager(true)
+				)
+				.setDictionary( BinanceFixDictionary.init() )
+				.setCustomAttributes("SESSION_INFO", Boolean.FALSE);
+		
+		this.fixClient.start(privateKey, apiKey, sessionInfoCfg, sessionTrxCfg);
 	}
 	
 	public static void main( String[] args ) throws Exception {
