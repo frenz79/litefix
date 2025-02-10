@@ -12,6 +12,7 @@ import com.litefix.examples.client.AbstractClient;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
+import com.litefix.models.session.AbstractFixSession;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
 import com.litefix.models.session.SSLSettings;
@@ -66,7 +67,7 @@ public class SimpleSSLFixClient extends AbstractClient {
 	
 	// IFixMessageListener
 	@Override
-	public void onMessageRcv(FixMessageDecoder decoder) throws BusinessRejectMessageException {
+	public void onMessageRcv(FixMessageDecoder decoder, AbstractFixSession s) throws BusinessRejectMessageException {
 		switch (decoder.getMsgType()) {
 		case "S" : handleQuote(decoder); break;
 		
@@ -78,7 +79,7 @@ public class SimpleSSLFixClient extends AbstractClient {
 	}
 
 	@Override
-	public void onLogout(FixMessageDecoder decoder) {
+	public void onLogout(FixMessageDecoder decoder, AbstractFixSession s) {
 		System.out.println("logged out..");
 	}
 	
@@ -88,7 +89,7 @@ public class SimpleSSLFixClient extends AbstractClient {
 	}
 
 	@Override
-	public void onLogon(FixMessageDecoder decoder, boolean result) throws SessionRejectMessageException, BusinessRejectMessageException {
+	public void onLogon(FixMessageDecoder decoder, AbstractFixSession s, boolean result) throws SessionRejectMessageException, BusinessRejectMessageException {
 		if (result) {
 			System.out.println("logged in");
 			for (int i=0; i<1; i++ ) {

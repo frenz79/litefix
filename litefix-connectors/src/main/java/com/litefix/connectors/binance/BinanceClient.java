@@ -13,6 +13,7 @@ import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.md.Book;
 import com.litefix.models.md.ExecutionReport;
 import com.litefix.models.md.Order;
+import com.litefix.models.md.Reject;
 import com.litefix.models.md.Trade;
 import com.litefix.models.md.enums.OrderType;
 import com.litefix.models.md.enums.Side;
@@ -86,6 +87,11 @@ public class BinanceClient {
 			@Override
 			public void onData(ExecutionReport t) {
 				System.out.println(t);
+			}
+
+			@Override
+			public void onError( Reject r ) {
+				System.out.println(r);
 			}
 		};
 		

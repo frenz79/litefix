@@ -22,6 +22,7 @@ import com.litefix.models.md.Book;
 import com.litefix.models.md.Book.BookLevel;
 import com.litefix.models.md.ExecutionReport;
 import com.litefix.models.md.Order;
+import com.litefix.models.md.Reject;
 import com.litefix.models.md.Trade;
 import com.litefix.models.md.enums.OrderType;
 import com.litefix.models.session.AbstractFixSession;
@@ -56,6 +57,8 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	public abstract void onData( Trade t);
 		
 	public abstract void onData( ExecutionReport e);
+	
+	public abstract void onError( Reject r);
 	
 	public BinanceFixClient() {
 		this( new BinanceFixMapper() );
@@ -160,7 +163,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 				}
 				break;
 			case "3" :
-				System.out.println("REJECT RECEIVED");
+				onError( decodeReject( decoder ) );
 				break;
 			case "8" :
 				onData( decodeExecutionReport( decoder ) );
@@ -171,6 +174,11 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		}
 	}
 	
+	private Reject decodeReject(FixMessageDecoder decoder) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 	//
 	// 8=FIX.4.4|9=330|35=8|34=2|49=SPOT|52=20240611-09:01:46.228950|56=qNXO12fH|11=1718096506197867067|14=0.00000000|
 	// 17=144|32=0.00000000|37=76|38=5.00000000|39=0|40=2|44=10.00000000|54=1|55=LTCBNB|59=4|60=20240611-09:01:46.228000|

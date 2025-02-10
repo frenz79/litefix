@@ -8,6 +8,7 @@ import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.md.Book;
 import com.litefix.models.md.ExecutionReport;
+import com.litefix.models.md.Reject;
 import com.litefix.models.md.Trade;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
@@ -38,6 +39,11 @@ class BinanceFixClientTest {
 		}
 		
 		@Override
+		public void onError(Reject r) {
+			// TODO Auto-generated method stub
+		}
+		
+		@Override
 		public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {
 			this.getLastBookMap().put(symbol, 
 					new Book(
@@ -48,6 +54,7 @@ class BinanceFixClientTest {
 				);
 			return this;
 		}
+
 	};
 	
 	@Test
