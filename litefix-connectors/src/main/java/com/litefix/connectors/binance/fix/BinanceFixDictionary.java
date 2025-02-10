@@ -1,4 +1,4 @@
-package com.litefix.connectors.binance;
+package com.litefix.connectors.binance.fix;
 
 import com.litefix.models.fixmessage.FixMessageDictionary;
 import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;
@@ -141,7 +141,7 @@ public class BinanceFixDictionary {
 			.addField(  44, "Price", true, FieldType.DECIMAL)
 			.addField(  59, "TimeInForce", false, FieldType.CHAR)
 			.addField( 111, "MaxFloor", false, FieldType.DECIMAL)
-		;	
+		;
 		
 		return dictionary;
 	}

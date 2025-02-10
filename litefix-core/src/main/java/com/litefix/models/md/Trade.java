@@ -2,37 +2,22 @@ package com.litefix.models.md;
 
 import com.litefix.commons.utils.MathUtils;
 
-public class Trade {
+public class Trade extends AbstractMarketData {
 	
 	private final String requestId;
-	private final String symbol;
-	private long rcvNanoTime;
-	
+
 	private String tradeId;
 	private long qty;
 	private long price;
 	private char side;
 	
 	public Trade(String requestId, String symbol) {
-		super();
+		super(symbol);
 		this.requestId = requestId;
-		this.symbol = symbol;
 	}
 
 	public String getRequestId() {
 		return requestId;
-	}
-
-	public String getSymbol() {
-		return symbol;
-	}
-
-	public void setRcvNanoTime(long rcvNanoTime) {
-		this.rcvNanoTime = rcvNanoTime;
-	}
-
-	public long getRcvNanoTime() {
-		return rcvNanoTime;
 	}
 
 	public void setTradeId(String tradeId) {
@@ -77,7 +62,7 @@ public class Trade {
 
 	@Override
 	public String toString() {
-		return "Trade [requestId=" + requestId + ", symbol=" + symbol + ", rcvNanoTime=" + rcvNanoTime + ", tradeId="
+		return "Trade [requestId=" + requestId + ", symbol=" + getSymbol() + ", rcvNanoTime=" + getRcvNanoTime() + ", tradeId="
 				+ tradeId + ", qty=" + qty + ", price=" + price + ", side=" + side + "]";
 	}
 }

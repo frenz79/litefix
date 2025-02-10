@@ -32,6 +32,8 @@ public abstract class AbstractFixSession implements ITransportListener{
 
 	final ClientFixSessionConfig sessionConfig;
 	
+	final String sessionId;
+	
 	private long lastGapFillMessageWaitTime = 10_000l;
 	private long lastGapFillMessageSendTime = 0l;
 	
@@ -64,7 +66,8 @@ public abstract class AbstractFixSession implements ITransportListener{
 		this.sessionConfig = sessionConfig;
 		this.transport = transport;
 		this.persistence = persistence;
-		
+		this.sessionId = sessionConfig.getSenderCompId() + "->" + sessionConfig.getTargetCompId();
+				
 		validateSessionConfig();
 		
 		this.sessionSM = new SessionStateMachine();
@@ -146,7 +149,7 @@ public abstract class AbstractFixSession implements ITransportListener{
 				return;
 			}
 			
-			LOGGER_MSG.info("RCV: {}", new String(buffer, from, len) );
+			LOGGER_MSG.info("RCV[{}]:{}", this.sessionId, new String(buffer, from, len) );
 	
 			FixMessageDecoder decoder = newDecoder( buffer, from, len, rcvNanoTime );
 			fixMessageValidator.isValidMessage( decoder, decoder.getMsgType() );
@@ -370,10 +373,10 @@ public abstract class AbstractFixSession implements ITransportListener{
 	private boolean send( byte[] outMsg ) {
 		try {
 			if ( transport.send( outMsg ) ) {
-				LOGGER_MSG.info("SND: {}", new String(outMsg) );
+				LOGGER_MSG.info("SND[{}]:{}", this.sessionId, new String(outMsg) );
 				return true;
 			}
-			LOGGER_MSG.error("SND FAILED: {}", new String(outMsg) );
+			LOGGER_MSG.error("SND_FAI[{}]:{}", this.sessionId, new String(outMsg) );
 			return false;
 		} catch (Exception e) {
 			LOGGER_SESSION.error("Exception Handled in send().",e);

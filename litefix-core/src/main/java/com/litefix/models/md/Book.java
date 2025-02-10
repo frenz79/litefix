@@ -5,22 +5,18 @@ import java.util.List;
 
 import com.litefix.commons.utils.MathUtils;
 
-public class Book {
+public class Book extends AbstractMarketData {
 
 	private final String requestId;
-	private final String symbol;
 	private String bookId;
 	private final int depth;
-
-	private long rcvNanoTime;
 	
 	private List<BookLevel> bidLevels = new ArrayList<>();
 	private List<BookLevel> askLevels = new ArrayList<>();
 	
 	public Book(String requestId, String symbol, String bookId, int depth) {
-		super();
+		super( symbol );
 		this.requestId = requestId;
-		this.symbol = symbol;
 		this.bookId = bookId;
 		this.depth = depth;
 	}
@@ -214,30 +210,18 @@ public class Book {
 		return requestId;
 	}
 
-	public String getSymbol() {
-		return symbol;
-	}
-
 	public String getBookId() {
 		return bookId;
 	}
 
 	@Override
 	public String toString() {
-		return "MarketData [requestId=" + requestId + ", symbol=" + symbol + ", bookId=" + bookId + ", bidLevels="
+		return "MarketData [requestId=" + requestId + ", symbol=" + getSymbol() + ", bookId=" + bookId + ", bidLevels="
 				+ bidLevels + ", askLevels=" + askLevels + "]";
 	}
 
 	public void setBookId(String bookId) {
 		this.bookId = bookId;
-	}
-
-	public long getRcvNanoTime() {
-		return rcvNanoTime;
-	}
-
-	public void setRcvNanoTime(long rcvNanoTime) {
-		this.rcvNanoTime = rcvNanoTime;
 	}
 
 	public int getDepth() {

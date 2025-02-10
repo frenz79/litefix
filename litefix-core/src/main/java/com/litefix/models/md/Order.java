@@ -4,16 +4,19 @@ import com.litefix.models.md.enums.OrderType;
 import com.litefix.models.md.enums.Side;
 import com.litefix.models.md.enums.TimeInForce;
 
-public class Order {
+public class Order extends AbstractMarketData {
 	
 	private String orderId;
 	private OrderType orderType;
 	private long price;
 	private Side side;
-	private String symbol;
 	private TimeInForce timeInForce;
 	private long qty;
 	private long visibleQty;
+	
+	public Order(String symbol) {
+		super(symbol);
+	}
 	
 	public String getOrderId() {
 		return orderId;
@@ -41,13 +44,6 @@ public class Order {
 	}
 	public Order setSide(Side side) {
 		this.side = side;
-		return this;
-	}
-	public String getSymbol() {
-		return symbol;
-	}
-	public Order setSymbol(String symbol) {
-		this.symbol = symbol;
 		return this;
 	}
 	public TimeInForce getTimeInForce() {

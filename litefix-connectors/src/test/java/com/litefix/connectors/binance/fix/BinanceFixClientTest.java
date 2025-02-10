@@ -1,4 +1,4 @@
-package com.litefix.connectors.binance;
+package com.litefix.connectors.binance.fix;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import com.litefix.models.dictionary.DefaultFix44Dictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.md.Book;
+import com.litefix.models.md.ExecutionReport;
 import com.litefix.models.md.Trade;
 import com.litefix.models.session.ClientFixSession;
 import com.litefix.models.session.ClientFixSessionConfig;
@@ -22,18 +23,23 @@ class BinanceFixClientTest {
 	private BinanceFixClient binanceFixClient = new BinanceFixClient() {
 
 		@Override
-		public void onMarketData(Book m) {
+		public void onData(Book m) {
 			// TODO Auto-generated method stub
 		}
 		
 		@Override
-		public void onMarketData(Trade m) {
+		public void onData(Trade m) {
+			// TODO Auto-generated method stub
+		}
+		
+		@Override
+		public void onData(ExecutionReport m) {
 			// TODO Auto-generated method stub
 		}
 		
 		@Override
 		public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {
-			this.lastBookMap.put(symbol, 
+			this.getLastBookMap().put(symbol, 
 					new Book(
 						requestId
 					,	symbol	// Symbol

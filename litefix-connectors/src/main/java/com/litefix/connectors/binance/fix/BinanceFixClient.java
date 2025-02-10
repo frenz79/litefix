@@ -1,4 +1,4 @@
-package com.litefix.connectors.binance;
+package com.litefix.connectors.binance.fix;
 
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
@@ -14,12 +14,14 @@ import java.util.Set;
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.utils.TimeUtils;
 import com.litefix.connectors.AbstractConnector;
+import com.litefix.connectors.IFixMapper;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.fixmessage.FixMessageDecoder.GroupDecoder;
 import com.litefix.models.fixmessage.FixMessageEncoder;
 import com.litefix.models.md.Book;
-import com.litefix.models.md.Order;
 import com.litefix.models.md.Book.BookLevel;
+import com.litefix.models.md.ExecutionReport;
+import com.litefix.models.md.Order;
 import com.litefix.models.md.Trade;
 import com.litefix.models.md.enums.OrderType;
 import com.litefix.models.session.AbstractFixSession;
@@ -40,20 +42,26 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	private ClientFixSession sessionTrx;
 	private PrivateKey privateKey;
 	private String apiKey;
-	private final BinanceFixMapper mapper;
+	private final IFixMapper mapper;
 	
 	private static final String ENCRYPTION_ALGO = "Ed25519";
 	
 	// Symbol, Book
-	Map<String,Book> lastBookMap = new HashMap<>();
+	private Map<String,Book> lastBookMap = new HashMap<>();
 	// RequestId, 
 	private Set<String> tradeSubsMap = new HashSet<>();
 	
-	public abstract void onMarketData( Book m );
+	public abstract void onData( Book m );
 	
-	public abstract void onMarketData( Trade t);
+	public abstract void onData( Trade t);
 		
-	public BinanceFixClient(BinanceFixMapper mapper) {
+	public abstract void onData( ExecutionReport e);
+	
+	public BinanceFixClient() {
+		this( new BinanceFixMapper() );
+	}
+	
+	public BinanceFixClient(IFixMapper mapper) {
 		this.mapper = mapper;
 	}
 	
@@ -74,7 +82,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		}
 		
 		if ( sessionTrxCfg!=null ) {
-			IClientTransport	transport = new ClientSocketTransport( sessionInfoCfg.getDictionary().getBeginString(), sessionInfoCfg.getDictionary().getFieldSep() );		
+			IClientTransport	transport = new ClientSocketTransport( sessionTrxCfg.getDictionary().getBeginString(), sessionTrxCfg.getDictionary().getFieldSep() );		
 			IPersistence<FixMessageEncoder>	persistence = new InMemoryPersistence<FixMessageEncoder>();
 
 			sessionTrx = (ClientFixSession) new ClientFixSession( transport, persistence, sessionTrxCfg )
@@ -139,17 +147,15 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	public void onMessageRcv(FixMessageDecoder decoder, AbstractFixSession session) throws BusinessRejectMessageException {
 		switch(decoder.getMsgType()) {
 			case "W" :
-				onMarketData( decodeMarketDataSnapshot( decoder ) );
+				onData( decodeMarketDataSnapshot( decoder ) );
 				break;
 			case "X" :
-				String requestId = decoder.asString(262); 	// MDReqID
-			//	Boolean LastFragment = decoder.asBoolean(893);
-				
+				String requestId = decoder.asString(262); 	// MDReqID				
 				if ( this.tradeSubsMap.contains(requestId) ) {
-					onMarketData( decodeIncrementalBookRefresh( requestId, decoder ) );
+					onData( decodeIncrementalBookRefresh( requestId, decoder ) );
 				} else {
 					for( Trade t : decodeIncrementalTradeRefresh( requestId, decoder ) ){
-						onMarketData( t );
+						onData( t );
 					};
 				}
 				break;
@@ -157,7 +163,7 @@ public abstract class BinanceFixClient extends AbstractConnector {
 				System.out.println("REJECT RECEIVED");
 				break;
 			case "8" :
-				System.out.println("EXECUTION REPORT RECEIVED");
+				onData( decodeExecutionReport( decoder ) );
 				break;
 			default:
 				System.out.println("Unsupported onMessageRcv() > "+decoder.getMsgType());
@@ -165,11 +171,38 @@ public abstract class BinanceFixClient extends AbstractConnector {
 		}
 	}
 	
+	//
+	// 8=FIX.4.4|9=330|35=8|34=2|49=SPOT|52=20240611-09:01:46.228950|56=qNXO12fH|11=1718096506197867067|14=0.00000000|
+	// 17=144|32=0.00000000|37=76|38=5.00000000|39=0|40=2|44=10.00000000|54=1|55=LTCBNB|59=4|60=20240611-09:01:46.228000|
+	// 150=0|151=5.00000000|636=Y|1057=Y|25001=1|25017=0.00000000|25018=20240611-09:01:46.228000|
+	// 25023=20240611-09:01:46.228000|10=095|
+	public ExecutionReport decodeExecutionReport(FixMessageDecoder decoder) {
+		String symbol = decoder.asString(55);
+		
+		ExecutionReport rep = new ExecutionReport(symbol);
+		rep.setExecutionId( decoder.asString(17) );
+		rep.setOrderId( decoder.asString(11) );
+		rep.setMarketOrderId( decoder.asString(37) );
+		rep.setQty( decoder.asString(38) );
+		rep.setOrderType( mapper.mapOrderType(decoder.asChar(40)) );
+		rep.setSide( mapper.mapSide(decoder.asChar(54)) );
+		rep.setTimeInForce( mapper.mapTimeInForce(decoder.asChar(59)) );
+		// 60 - TimeInForce
+		rep.setVisibleQty( decoder.asString(111) );
+		rep.setExecType(  mapper.mapExecType(decoder.asChar(150)) );
+		rep.setCumQty( decoder.asString(14) );
+		rep.setLastQty( decoder.asString(32) );
+		rep.setTradeId( decoder.asString(1003) );
+		rep.setOrderStatus(  mapper.mapOrdStatus(decoder.asChar(39)) );
+		
+		return rep;
+	}
+
 	// MarketDataSnapshot<W>
 	// RCV: 8=FIX.4.49=000021335=W49=SPOT56=SPOTTEST34=252=20250130-18:59:55.088145
 	// 262=338a6a9f-cd55-42fb-a7c0-85aae0602a6455=BTCUSDT25044=10762840268=2
 	// 269=0270=105427.98000000271=0.00276000269=1270=105427.99000000271=0.0036600010=182
-	Book decodeMarketDataSnapshot(FixMessageDecoder decoder) {
+	public Book decodeMarketDataSnapshot(FixMessageDecoder decoder) {
 		String symbol = decoder.asString(55);
 		Book m = this.lastBookMap.get(symbol);
 		m.setRcvNanoTime(decoder.getRcvNanoTime());
@@ -279,27 +312,25 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	8=FIX.4.4|9=127|35=V|49=TRADER1|56=SPOT|34=7|52=20241122-06:17:14.443822|262=DEPTH_STREAM|263=1|264=10|266=Y|146=1|55=BTCUSDT|267=2|269=0|269=1|10=111|
 	*/
 	public BinanceFixClient subscribeBook(String symbol, String requestId, int bookLevels) {		
-		FixMessageEncoder bookSub = sessionInfo.newEncoder("V")
-		.set(262, requestId )	// MDReqID
-		.set(263, '1')	// SubscriptionRequestType
-		.set(264, bookLevels) // MarketDepth
-					 // 1 - Book Ticker subscription
-					 // 2-5000 - Diff. Depth Stream
-		.set(146, 1) // NoRelatedSym
-		.set(55, symbol)
-		.set(267, 2) // NoMDEntryTypes
-		.set(267, 269, '0') // bid
-		.set(267, 269, '1') // offer
+		FixMessageEncoder sub = sessionInfo.newEncoder("V")
+			.set(262, requestId )	// MDReqID
+			.set(263, '1')	// SubscriptionRequestType
+			.set(264, bookLevels) // MarketDepth
+			.set(146, 1) // NoRelatedSym
+			.set(55, symbol)
+			.set(267, 2) // NoMDEntryTypes
+			.set(267, 269, '0') // bid
+			.set(267, 269, '1') // offer
 		;
 		
 		this.tradeSubsMap.add(requestId);
 		
-		sessionInfo.sendMessage(bookSub);
+		sessionInfo.sendMessage(sub);
 		
 		// Send back existing image...if present
 		Book lastBook = this.lastBookMap.get(symbol);		
 		if ( lastBook!=null ) {
-			onMarketData(lastBook);
+			onData(lastBook);
 		} else {
 			this.lastBookMap.put(symbol, 
 				new Book(
@@ -313,22 +344,16 @@ public abstract class BinanceFixClient extends AbstractConnector {
 	}
 	
 	public BinanceFixClient subscribeTrades(String symbol, String requestId) {		
-		FixMessageEncoder bookSub = sessionInfo.newEncoder("V")
-		.set(262, requestId )	// MDReqID
-		.set(263, '1')	// SubscriptionRequestType
-		.set(264, 1) // MarketDepth
-		.set(146, 1) // NoRelatedSym
-		.set(55, symbol)
-		.set(267, 1) // NoMDEntryTypes
-		.set(267, 269, '2') // trades
+		FixMessageEncoder sub = sessionInfo.newEncoder("V")
+			.set(262, requestId )	// MDReqID
+			.set(263, '1')	// SubscriptionRequestType
+			.set(264, 1) // MarketDepth
+			.set(146, 1) // NoRelatedSym
+			.set(55, symbol)
+			.set(267, 1) // NoMDEntryTypes
+			.set(267, 269, '2') // trades
 		;
-		sessionInfo.sendMessage(bookSub);
-		
-		// Send back existing image...if present
-		Book lastBook = lastBookMap.get(symbol);		
-		if ( lastBook!=null ) {
-			onMarketData(lastBook);
-		}
+		sessionInfo.sendMessage(sub);
 		return this;
 	}
 	
@@ -420,5 +445,9 @@ D - TRIGGER_IF_THE_PRICE_OF_THE_SPECIFIED_TYPE_GOES_DOWN_TO_OR_THROUGH_THE_SPECI
 		}
 		sessionTrx.sendMessage(newOrd);
 		return this;
+	}
+
+	public Map<String, Book> getLastBookMap() {
+		return lastBookMap;
 	}
 }

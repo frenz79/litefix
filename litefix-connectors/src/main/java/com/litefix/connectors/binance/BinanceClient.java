@@ -7,8 +7,11 @@ import java.util.UUID;
 
 import com.litefix.commons.exceptions.BusinessRejectMessageException;
 import com.litefix.commons.exceptions.SessionRejectMessageException;
+import com.litefix.connectors.binance.fix.BinanceFixClient;
+import com.litefix.connectors.binance.fix.BinanceFixDictionary;
 import com.litefix.models.fixmessage.FixMessageDecoder;
 import com.litefix.models.md.Book;
+import com.litefix.models.md.ExecutionReport;
 import com.litefix.models.md.Order;
 import com.litefix.models.md.Trade;
 import com.litefix.models.md.enums.OrderType;
@@ -46,7 +49,7 @@ public class BinanceClient {
 	private final BinanceFixClient fixClient;
 		
 	public BinanceClient( String binanceEnv, String apiKey, String privateKey ) throws Exception{
-		this.fixClient = new BinanceFixClient( new BinanceFixMapper() ) {
+		this.fixClient = new BinanceFixClient( ) {
 			@Override
 			public void onLogon(FixMessageDecoder decoder, AbstractFixSession session, boolean result)
 					throws SessionRejectMessageException, BusinessRejectMessageException {
@@ -59,12 +62,11 @@ public class BinanceClient {
 					System.out.println("Subscribing Trades for: " + symbol);
 					subscribeTrades(symbol, UUID.randomUUID().toString());
 				} else {
-					Order order = new Order()
+					Order order = new Order(symbol)
 						.setOrderId(UUID.randomUUID().toString())
 						.setOrderType(OrderType.MARKET)
 						.setQty(1L)
 						.setSide(Side.BUY)
-						.setSymbol(symbol)
 						.setTimeInForce(TimeInForce.FILL_OR_KILL)
 						;
 					sendNewOrder( order );
@@ -72,12 +74,17 @@ public class BinanceClient {
 			}
 
 			@Override
-			public void onMarketData(Book m) {
+			public void onData(Book m) {
 				System.out.println(m);
 			}
 			
 			@Override
-			public void onMarketData(Trade t) {
+			public void onData(Trade t) {
+				System.out.println(t);
+			}
+			
+			@Override
+			public void onData(ExecutionReport t) {
 				System.out.println(t);
 			}
 		};
