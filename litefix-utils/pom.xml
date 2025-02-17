@@ -18,13 +18,6 @@
 	</properties>
 	
 	<dependencies>
-
-		<dependency>
-		    <groupId>com.litefix</groupId>
-		    <artifactId>litefix-core</artifactId>
-		    <version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		
 		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
 		<dependency>
 		    <groupId>org.apache.logging.log4j</groupId>

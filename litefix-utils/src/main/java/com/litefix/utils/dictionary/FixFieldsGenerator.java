@@ -3,12 +3,13 @@ package com.litefix.utils.dictionary;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 
 import org.w3c.dom.Document;
@@ -25,8 +26,8 @@ public class FixFieldsGenerator {
 
 		XPathFactory xpathFactory = XPathFactory.newInstance();
 		XPath xpath = xpathFactory.newXPath();
-		XPathExpression expr = xpath.compile("/fix/fields//field");
-	    NodeList fieldsList = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+		
+	    NodeList fieldsList = (NodeList) xpath.compile("/fix/fields//field").evaluate(doc, XPathConstants.NODESET);
 
 	    generateClassPrefix(
 	    	"DefaultFix44Fields"
@@ -40,18 +41,36 @@ public class FixFieldsGenerator {
 			
 			generateField( number, name, type );
 		}
-		
+		generateLookupMaps();
 		generateClassPostfix();
 	}
+	
+	private static final Map<Integer,String> fixFieldByTag = new HashMap<>();
+	
 	
 	public static void generateClassPrefix( String className ) {
 		System.out.println("package com.litefix.models.dictionary;");
 		System.out.println("");
 		System.out.println("import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;");
+		System.out.println("import java.util.HashMap;");
+		System.out.println("import java.util.Map;");
 		System.out.println("");
 		System.out.println("// Generated at:"+LocalDateTime.now().atZone(ZoneId.of("UTC"))+"");
 		System.out.println("");
-		System.out.println("public interface "+className+" {");
+		System.out.println("public class "+className+" {");
+		System.out.println("");
+		System.out.println("public FixField of(int tag) { return fieldsByTag[tag]; }");
+		System.out.println("public FixField of(String name) { return fieldsByName.get(name); }");
+		
+		System.out.println("");
+		
+		System.out.println("public void add( FixField f ) {");
+		System.out.println("fieldsByTag[f.tag()] = f;");
+		System.out.println("fieldsByName.put(f.name(), f);");
+		System.out.println("}");
+		
+		System.out.println("");
+		
 		System.out.println("");
 	}
 	
@@ -60,11 +79,35 @@ public class FixFieldsGenerator {
 		System.out.println("}");
 	}
 	
-
 	public static void generateField(String number , String name ,String type ) {
 		System.out.println(
 			"public static final FixField "+name+"                   = new FixField(\""+name+"\"                ,   "+number+", FieldType."+getFieldType(type)+"       );"
 		);
+		
+		fixFieldByTag.put(Integer.valueOf(number), name);
+	}
+	
+	public static void generateLookupMaps() {
+		System.out.println("");
+		System.out.println("private static final FixField[] fieldsByTag = new FixField[]{");
+		
+		StringBuilder strTag = new StringBuilder();
+		StringBuilder strName = new StringBuilder();
+		for (int i=1; i<fixFieldByTag.size(); i++) {
+			strTag.append(fixFieldByTag.get(i)+",\n");			
+			strName.append("fieldsByName.put(\""+fixFieldByTag.get(i)+"\","+fixFieldByTag.get(i)+");\n");
+		}
+		strTag.setLength(strTag.length()-2);
+		strName.setLength(strName.length()-1);
+		
+		System.out.println(strTag);
+		System.out.println("};");
+		
+		System.out.println("");
+		System.out.println("private static final Map<String,FixField> fieldsByName = new HashMap<>();");
+		System.out.println("static {");
+		System.out.println(strName);
+		System.out.println("}");
 	}
 	
 	public static String getFieldType(String type ) {
