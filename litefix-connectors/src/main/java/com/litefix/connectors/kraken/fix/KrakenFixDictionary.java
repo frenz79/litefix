@@ -1,4 +1,4 @@
-package com.litefix.connectors.kraken;
+package com.litefix.connectors.kraken.fix;
 
 import com.litefix.models.fixmessage.FixMessageDictionary;
 import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;

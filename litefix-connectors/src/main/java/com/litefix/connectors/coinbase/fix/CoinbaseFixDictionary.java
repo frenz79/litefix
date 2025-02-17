@@ -1,4 +1,4 @@
-package com.litefix.connectors.coinbase;
+package com.litefix.connectors.coinbase.fix;
 
 import com.litefix.models.fixmessage.FixMessageDictionary;
 import com.litefix.models.fixmessage.FixMessageDictionary.FieldType;
@@ -9,7 +9,7 @@ public class CoinbaseFixDictionary {
 	private static FixMessageDictionary dictionary;	
 	
 	public static FixMessageDictionary init() {
-		dictionary = new FixMessageDictionary("FIX.4.4", '', '.')
+		dictionary = new FixMessageDictionary("FIXT.1.1", '', '.')
 			.addTrailer(93, "SignatureLength", false, FieldType.INTEGER)
 			.addTrailer(89, "Signature", false, FieldType.STRING)
 			.addTrailer(10, "CheckSum", true, FieldType.RESERVED)
@@ -56,19 +56,13 @@ public class CoinbaseFixDictionary {
 		dictionary.register("A")
 			.addField( 98, "EncryptMethod", true, FieldType.INTEGER, 0)
 			.addField(108, "HeartBtInt", true, FieldType.INTEGER)
-			.addField( 95, "RawDataLength", false, FieldType.INTEGER)
-			.addField( 96, "RawData", false, FieldType.STRING)
+			.addField( 95, "RawDataLength", true, FieldType.INTEGER)
+			.addField( 96, "RawData", true, FieldType.STRING)
 			.addField(141, "ResetSeqNumFlag", false, FieldType.INTEGER)
-			.addField(789, "NextExpectedMsgSeqNum", false, FieldType.INTEGER)
-			.addField(383, "MaxMessageSize", false, FieldType.INTEGER)
-			.addGroup(384, "NoMsgTypes", false, new FixMessageFieldTemplate[] {
-					new FixMessageFieldTemplate(372, "RefMsgType", false, FieldType.STRING),
-					new FixMessageFieldTemplate(385, "MsgDirection", false, FieldType.CHAR)
-				})
 			.addField(464, "TestMessageIndicator", false, FieldType.BOOLEAN)
-			.addField(553, "Username", false, FieldType.STRING)
-			.addField(554, "Password", false, FieldType.STRING)
-			.addField(25035, "MessageHandling", true, FieldType.INTEGER)
+			.addField(553, "Username", true, FieldType.STRING)
+			.addField(554, "Password", true, FieldType.STRING)
+			.addField(1137, "DefaultApplVerID", true, FieldType.STRING)
 		;
 		// Logout
 		dictionary.register("5")

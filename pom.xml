@@ -17,6 +17,7 @@
 		<module>litefix-core</module>
 		<module>litefix-connectors</module>
 		<module>litefix-examples</module>
+		<module>litefix-utils</module>
 	</modules>
 	
 	<dependencyManagement>

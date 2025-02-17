@@ -1,4 +1,4 @@
-package com.litefix.connectors.kraken;
+package com.litefix.connectors.kraken.fix;
 
 import java.io.File;
 import java.io.FileInputStream;
