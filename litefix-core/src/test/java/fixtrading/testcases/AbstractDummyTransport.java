@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.litefix.models.session.ProxySettings;
 import com.litefix.models.session.SSLSettings;
 import com.litefix.modules.transport.IClientTransport;
 import com.litefix.modules.transport.ITransportListener;
@@ -33,7 +34,7 @@ public abstract class AbstractDummyTransport implements IClientTransport {
 	}
 
 	@Override
-	public void connect(String host, int port, SSLSettings sslSettings, ITransportListener listener) throws Exception {
+	public void connect(String host, int port, SSLSettings sslSettings, ProxySettings proxy, ITransportListener listener) throws Exception {
 		this.listener = listener;
 		listener.onConnect(true);
 	}
