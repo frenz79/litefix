@@ -1,11 +1,13 @@
 package com.litefix.modules.transport;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.security.KeyStore;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.litefix.models.session.ProxySettings;
 import com.litefix.models.session.SSLSettings;
 
 import io.netty.bootstrap.Bootstrap;
@@ -24,6 +26,10 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
+import io.netty.handler.proxy.HttpProxyHandler;
+import io.netty.handler.proxy.ProxyHandler;
+import io.netty.handler.proxy.Socks4ProxyHandler;
+import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -81,7 +87,7 @@ public class ClientSocketTransport implements IClientTransport {
 	}
 
 	@Override
-	public void connect(String host, int port, SSLSettings sslSettings, final ITransportListener listener ) throws Exception {		
+	public void connect(String host, int port, SSLSettings sslSettings, ProxySettings proxySettings, final ITransportListener listener ) throws Exception {		
 		try {
 			this.bootstrap = new Bootstrap()
 					.group(workerGroup)
@@ -100,22 +106,12 @@ public class ClientSocketTransport implements IClientTransport {
 					if ( sslSettings!=null ) {
 						initializeSSL( host, port, sslSettings, ch );
 					}					
-
-					//		pipeline.addLast(new ReadTimeoutHandler(5000));
-					//		pipeline.addLast(new WriteTimeoutHandler(5000));
-					//		pipeline.addLast(new IdleStateHandler(0, 0, 1, TimeUnit.SECONDS));
 					
 					pipeline.addLast(new FixLengthFieldBasedFrameDecoder( fixBeginString, fieldSep ));
 					pipeline.addLast(new ByteArrayDecoder());
 					pipeline.addLast(new ByteArrayEncoder());
 
 					pipeline.addLast("SimpleChannelInboundHandler", new SimpleChannelInboundHandler<byte[]>() {
-
-					//	@Override
-					//	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-					//		System.out.println("> channelActive");
-					//		listener.onConnect(true);
-					//	}
 
 						@Override
 						public void channelInactive(ChannelHandlerContext ctx) throws Exception {
@@ -136,6 +132,33 @@ public class ClientSocketTransport implements IClientTransport {
 							listener.onMessage( buffer, 0, buffer.length, System.nanoTime() );
 						}
 					});
+					
+		            if (proxySettings != null) {
+		            	ProxyHandler proxyHandler;
+		            	InetSocketAddress proxyAddress = new InetSocketAddress(proxySettings.getHost(), proxySettings.getPort());
+		            	
+		                switch(proxySettings.getType()) {
+						case HTTP:
+							proxyHandler = (proxySettings.isAuthenticated())
+								? new HttpProxyHandler(proxyAddress, proxySettings.getLogin(), proxySettings.getPassword())
+								: new HttpProxyHandler(proxyAddress);
+							break;
+						case SOCKS4:
+							proxyHandler = (proxySettings.isAuthenticated())
+								? new Socks4ProxyHandler(proxyAddress, proxySettings.getLogin())
+								: new Socks4ProxyHandler(proxyAddress);
+							break;
+						case SOCKS5:
+							proxyHandler = (proxySettings.isAuthenticated())
+								? new Socks5ProxyHandler(proxyAddress, proxySettings.getLogin(), proxySettings.getPassword())
+								: new Socks5ProxyHandler(proxyAddress);
+							break;
+						default:
+							throw new RuntimeException(String.format("Unsupported proxy type:%s", proxySettings.getType().toString()));
+		                }
+		                
+		                pipeline.addFirst(proxyHandler);
+		            }
 				}
 			});
 
