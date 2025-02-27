@@ -6,5 +6,11 @@
 *.bak
 *.dat
 /private
+*_LOCAL_*
+*_BASE_*
+*_BACKUP_*
+*_REMOTE_*
+
+
 
 
